@@ -1,0 +1,47 @@
+package com.example.yakuzaiapp.data.jahis
+
+data class JahisPrescription(
+    val version: String,
+    val patientName: String?,
+    val patientGender: String?,
+    val patientBirthDate: String?,
+    val dispensingDate: String?,
+    val pharmacyName: String?,
+    val prescribingHospital: String?,
+    val doctorName: String? = null,
+    val department: String? = null,
+    val rps: List<JahisRp>
+)
+
+data class JahisRp(
+    val rpNumber: Int,
+    val drugs: List<JahisDrug>,
+    val usage: String?
+)
+
+data class JahisDrug(
+    val rpNumber: Int,
+    val drugCodeType: DrugCodeType,
+    val drugCode: String?,
+    val drugName: String,
+    val quantity: String,
+    val unit: String,
+    val genericName: String? = null,
+    val genericCodeType: String? = null,
+    val genericCode: String? = null
+)
+
+enum class DrugCodeType(val code: String) {
+    NONE("1"),
+    RECEIPT_COMPUTER("2"),
+    MHLW("3"),
+    YJ("4"),
+    HOT("6"),
+    GENERIC_MHLW("7"),
+    UNKNOWN("9");
+
+    companion object {
+        fun fromCode(code: String): DrugCodeType =
+            values().firstOrNull { it.code == code } ?: UNKNOWN
+    }
+}

@@ -1,0 +1,80 @@
+﻿package com.example.yakuzaiapp.domain.jahis
+
+import android.util.Log
+import com.example.yakuzaiapp.data.jahis.JahisQrParser
+
+data class DetectedQr(
+    val text: String,
+    val left: Int,
+    val saSequence: Int? = null,
+    val saTotal: Int? = null,
+    val saParity: Int? = null,
+)
+
+sealed class AssembleResult {
+    data class Success(val fullText: String) : AssembleResult()
+    data object NoHeader : AssembleResult()
+    data class ParseFailed(val message: String) : AssembleResult()
+}
+
+object JahisQrAssembler {
+    private val RECORD_START_PATTERN = Regex("^(JAHISTC\\d{2}|\\d+,)")
+
+    fun tryAssemble(qrs: List<DetectedQr>): AssembleResult {
+        val ordered = qrs
+            .asSequence()
+            .filter { it.text.isNotBlank() }
+            .distinctBy { "${it.left}:${it.text}" }
+            .sortedBy { it.left }
+            .toList()
+
+        if (ordered.isEmpty()) {
+            return AssembleResult.NoHeader
+        }
+
+        if (ordered.none { hasSupportedHeader(it.text) }) {
+            return AssembleResult.NoHeader
+        }
+        val fullText = buildFullText(ordered)
+
+        return try {
+            val parsed = JahisQrParser.parse(fullText)
+            if (parsed.rps.isEmpty()) {
+                AssembleResult.ParseFailed("parsed prescription had no RP items")
+            } else {
+                val itemCount = parsed.rps.sumOf { it.drugs.size }
+                debugLog("result: Success itemCount=$itemCount")
+                AssembleResult.Success(fullText)
+            }
+        } catch (e: Throwable) {
+            debugLog("result: ParseFailed(${e.message})")
+            AssembleResult.ParseFailed(e.message ?: "JAHIS QR parse failed")
+        }
+    }
+
+    private fun debugLog(message: String) {
+        runCatching { Log.d("JahisQrAssembler", message) }
+    }
+
+    private fun buildFullText(ordered: List<DetectedQr>): String {
+        val sb = StringBuilder()
+        ordered.forEachIndexed { index, fragment ->
+            if (index > 0) {
+                val prev = ordered[index - 1].text
+                val prevEndsWithNewline = prev.endsWith("\n") || prev.endsWith("\r")
+                val nextStartsRecord = RECORD_START_PATTERN.containsMatchIn(fragment.text)
+                if (!prevEndsWithNewline && nextStartsRecord) {
+                    sb.append('\n')
+                }
+            }
+            sb.append(fragment.text)
+        }
+        return sb.toString()
+    }
+
+    private fun hasSupportedHeader(text: String): Boolean {
+        return text.startsWith("JAHISTC01") ||
+            text.startsWith("JAHISTC02") ||
+            text.startsWith("JAHISTC07")
+    }
+}

@@ -1,0 +1,48 @@
+# Gradle
+.gradle/
+.gradle-local/
+build/
+app/build/
+
+# IDE - IntelliJ / Android Studio
+.idea/
+*.iml
+*.iws
+*.ipr
+local.properties
+
+# Android build outputs
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# Kotlin
+.kotlin/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logcat*.txt
+
+# Root-level investigation / scratch outputs
+/*.txt
+/*.sql
+
+# Local database dumps
+*.db
+*.db-shm
+*.db-wal
+
+# 検証用一時ファイル
+*_verify_result.txt
+yakuzaiapp_phaseB.db*
+
+# キャプチャ・取得ファイル
+salesname_import.log
+
+# 一時作業ディレクトリ
+_tmp_*/

@@ -1,0 +1,613 @@
+﻿package com.example.yakuzaiapp.util
+
+import android.content.Context
+import android.util.Log
+import java.nio.charset.Charset
+import java.util.Locale
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ImageProxy
+import com.example.yakuzaiapp.domain.jahis.DetectedQr
+import com.example.yakuzaiapp.domain.scan.ScanMode
+import com.google.zxing.BinaryBitmap
+import com.google.zxing.BarcodeFormat as ZXingBarcodeFormat
+import com.google.zxing.DecodeHintType
+import com.google.zxing.PlanarYUVLuminanceSource
+import com.google.zxing.Result
+import com.google.zxing.ResultMetadataType
+import com.google.zxing.common.HybridBinarizer
+import com.google.zxing.multi.qrcode.QRCodeMultiReader
+import zxingcpp.BarcodeReader
+
+private const val TAG = "BarcodeAnalyzer"
+private const val JAPANESE_SCORE_THRESHOLD = 0.15
+
+private data class MojibakeCandidate(
+    val route: String,
+    val text: String,
+    val score: Double
+)
+
+private fun previewText(text: String, maxLength: Int = 40): String {
+    return text.take(maxLength)
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+}
+
+private fun escapeForLog(s: String): String {
+    return s
+        .replace("\\", "\\\\")
+        .replace("\r", "\\r")
+        .replace("\n", "\\n")
+}
+
+private fun formatScore(score: Double): String {
+    return String.format(Locale.US, "%.3f", score)
+}
+
+private fun decodeTextWithCharset(
+    source: ByteArray,
+    charsetName: String,
+    route: String
+): MojibakeCandidate? {
+    val charset = runCatching { Charset.forName(charsetName) }.getOrNull() ?: return null
+    val text = runCatching {
+        String(source, charset)
+    }.getOrNull()?.takeIf { it.isNotBlank() } ?: return null
+    return MojibakeCandidate(route, text, japaneseScore(text))
+}
+
+private fun logCandidate(prefix: String, candidate: MojibakeCandidate) {
+    Log.d(
+        TAG,
+        "$prefix route=${candidate.route} score=${formatScore(candidate.score)} preview=${previewText(candidate.text)}"
+    )
+}
+
+private data class StructuredAppendInfo(
+    val sequence: Int?,
+    val total: Int?,
+    val parity: Int?
+)
+
+internal fun repairMojibakeIfNeeded(
+    text: String
+): String {
+    val original = MojibakeCandidate("original", text, japaneseScore(text))
+    val candidates = listOfNotNull(original) +
+        decodeMojibakeCandidate(
+            source = text,
+            route = "CP932->UTF-8",
+            charsetNames = listOf("CP932", "Windows-31J")
+        ) +
+        decodeMojibakeCandidate(
+            source = text,
+            route = "Windows-31J->UTF-8",
+            charsetNames = listOf("Windows-31J", "CP932")
+        ) +
+        decodeMojibakeCandidate(
+            source = text,
+            route = "ISO-8859-1->UTF-8",
+            charsetNames = listOf("ISO-8859-1")
+        )
+
+    val bestCandidate = candidates.maxByOrNull { it.score } ?: original
+    if (bestCandidate.route != "original" &&
+        bestCandidate.score >= JAPANESE_SCORE_THRESHOLD &&
+        bestCandidate.score > original.score
+    ) {
+        return bestCandidate.text
+    }
+
+    if (text.contains('\n')) {
+        val repairedLines = text.split('\n').map { line ->
+            repairMojibakeIfNeeded(line)
+        }
+        val repairedText = repairedLines.joinToString("\n")
+        if (repairedText != text) return repairedText
+    }
+
+    return text
+}
+
+private fun decodeMojibakeCandidate(
+    source: String,
+    route: String,
+    charsetNames: List<String>
+): List<MojibakeCandidate> {
+    val candidates = mutableListOf<MojibakeCandidate>()
+    for (charsetName in charsetNames) {
+        val charset = runCatching { Charset.forName(charsetName) }.getOrNull() ?: continue
+        val candidate = runCatching {
+            String(source.toByteArray(charset), Charsets.UTF_8)
+        }.getOrNull() ?: continue
+        candidates += MojibakeCandidate(route, candidate, japaneseScore(candidate))
+        val stripped = candidate.replace("\uFFFD", "")
+        if (stripped.isNotBlank() && stripped != candidate) {
+            candidates += MojibakeCandidate(
+                route = "$route+stripReplacement",
+                text = stripped,
+                score = japaneseScore(stripped)
+            )
+        }
+        return candidates
+    }
+
+    return candidates
+}
+
+internal fun looksLikeValidJapanese(s: String): Boolean {
+    if (s.isEmpty()) return false
+    val japaneseCount = s.count { c ->
+        c in '\u3040'..'\u309F' ||
+            c in '\u30A0'..'\u30FF' ||
+            c in '\u4E00'..'\u9FFF'
+    }
+    val ratio = japaneseCount.toDouble() / s.length
+    return ratio >= 0.15
+}
+
+internal fun japaneseScore(s: String): Double {
+    if (s.isEmpty()) return 0.0
+    val japaneseCount = s.count { c ->
+        c in '\u3040'..'\u309F' ||
+            c in '\u30A0'..'\u30FF' ||
+            c in '\u4E00'..'\u9FFF'
+    }
+    val halfWidthKanaCount = s.count { c ->
+        c in '\uFF66'..'\uFF9F'
+    }
+    val replacementCount = s.count { it == '\uFFFD' }
+    val weightedLength = s.length + (halfWidthKanaCount * 2) + (replacementCount * 4)
+    return japaneseCount.toDouble() / weightedLength
+}
+
+internal fun decodeJahisZxingResult(result: Result): String? {
+    val rawText = result.text?.takeIf { it.isNotBlank() }
+    val byteSegments = extractByteSegmentsFromZXingResult(result)
+    val mergedBytes = byteSegments?.takeIf { it.isNotEmpty() }?.let { mergeByteSegments(it) }
+    val sjisCandidate = mergedBytes?.let {
+        decodeTextWithCharset(
+            source = it,
+            charsetName = "Windows-31J",
+            route = "byteSegments-SJIS"
+        )
+    }
+    val otherCandidates = buildList {
+        if (mergedBytes != null) {
+            val fromBytes = runCatching {
+                String(mergedBytes, Charsets.UTF_8)
+            }.getOrNull()
+            if (!fromBytes.isNullOrBlank()) {
+                add(MojibakeCandidate("byteSegments-UTF8", fromBytes, japaneseScore(fromBytes)))
+            }
+        }
+
+        if (rawText != null) {
+            add(MojibakeCandidate("result.text", rawText, japaneseScore(rawText)))
+            val repaired = repairMojibakeIfNeeded(rawText)
+            if (repaired != rawText) {
+                add(MojibakeCandidate("repaired", repaired, japaneseScore(repaired)))
+            }
+        }
+    }
+
+    val bestOtherScore = otherCandidates.maxOfOrNull { it.score } ?: Double.NEGATIVE_INFINITY
+    if (sjisCandidate != null) {
+        Log.d(
+            TAG,
+            "zxing candidate route=${sjisCandidate.route} score=${formatScore(sjisCandidate.score)} preview=${previewText(sjisCandidate.text)}"
+        )
+        if (sjisCandidate.score >= JAPANESE_SCORE_THRESHOLD && sjisCandidate.score >= bestOtherScore) {
+            Log.d(
+                TAG,
+                "zxing selected route=${sjisCandidate.route}-fastpath score=${formatScore(sjisCandidate.score)} preview=${previewText(sjisCandidate.text)}"
+            )
+            return sjisCandidate.text
+        }
+    }
+
+    val candidates = otherCandidates.toMutableList()
+    sjisCandidate?.let { candidates.add(it) }
+
+    val bestCandidate = candidates.maxByOrNull { it.score }
+    candidates.forEach { logCandidate("zxing candidate", it) }
+    if (bestCandidate != null) {
+        Log.d(
+            TAG,
+            "zxing selected route=${bestCandidate.route} score=${formatScore(bestCandidate.score)} preview=${previewText(bestCandidate.text)}"
+        )
+    }
+    val resultText = bestCandidate?.text ?: rawText
+    val finalText = resultText?.let { repairMojibakeIfNeeded(it) } ?: resultText
+    if (finalText != null && !isCompleteJahisText(finalText)) {
+        Log.d(
+            TAG,
+            "zxing rejected partial decode text-len=${finalText.length} text-head='${previewText(finalText)}'"
+        )
+        return null
+    }
+    return finalText
+}
+
+internal fun isCompleteJahisText(text: String): Boolean {
+    if (!text.startsWith("JAHISTC")) return false
+    if (!text.endsWith("\r\n")) return false
+    val lines = text.split("\r\n").filter { it.isNotEmpty() }
+    val lastLine = lines.lastOrNull() ?: return false
+    val fields = lastLine.split(",")
+    val recordNum = fields.firstOrNull()?.toIntOrNull() ?: return false
+    if (recordNum < 100 || recordNum > 999) return false
+    return true
+}
+
+internal fun decodeMlKitBarcodeText(rawValue: String?, rawBytes: ByteArray?): String? {
+    val rawValueCandidate = rawValue?.takeIf { it.isNotBlank() }?.let {
+        MojibakeCandidate("rawValue", it, japaneseScore(it))
+    }
+    val utf8Candidate = rawBytes?.takeIf { it.isNotEmpty() }?.let {
+        runCatching {
+            String(it, Charsets.UTF_8)
+        }.getOrNull()?.takeIf { candidate -> candidate.isNotBlank() }?.let { candidate ->
+            MojibakeCandidate("rawBytes-UTF8", candidate, japaneseScore(candidate))
+        }
+    }
+    val sjisCandidate = rawBytes?.takeIf { it.isNotEmpty() }?.let {
+        decodeTextWithCharset(
+            source = it,
+            charsetName = "Windows-31J",
+            route = "rawBytes-SJIS"
+        )
+    }
+
+    val otherCandidates = buildList {
+        rawValueCandidate?.let { add(it) }
+        utf8Candidate?.let { add(it) }
+    }
+    val bestOtherScore = otherCandidates.maxOfOrNull { it.score } ?: Double.NEGATIVE_INFINITY
+    if (sjisCandidate != null) {
+        Log.d(
+            TAG,
+            "mlkit candidate route=${sjisCandidate.route} score=${formatScore(sjisCandidate.score)} preview=${previewText(sjisCandidate.text)}"
+        )
+        if (sjisCandidate.score >= JAPANESE_SCORE_THRESHOLD && sjisCandidate.score >= bestOtherScore) {
+            Log.d(
+                TAG,
+                "mlkit selected route=${sjisCandidate.route}-fastpath score=${formatScore(sjisCandidate.score)} preview=${previewText(sjisCandidate.text)}"
+            )
+            return sjisCandidate.text
+        }
+    }
+
+    val candidates = buildList {
+        rawValueCandidate?.let { add(it) }
+        utf8Candidate?.let { add(it) }
+        sjisCandidate?.let { add(it) }
+    }
+
+    if (candidates.isEmpty()) return null
+
+    var bestCandidate = candidates.maxByOrNull { it.score } ?: return null
+    candidates.forEach { logCandidate("mlkit candidate", it) }
+    Log.d(
+        TAG,
+        "mlkit selected route=${bestCandidate.route} score=${formatScore(bestCandidate.score)} preview=${previewText(bestCandidate.text)}"
+    )
+    if (bestCandidate.score < JAPANESE_SCORE_THRESHOLD) {
+        val repaired = repairMojibakeIfNeeded(bestCandidate.text)
+        if (repaired != bestCandidate.text) {
+            val repairedCandidate = MojibakeCandidate(
+                route = "${bestCandidate.route}+repaired",
+                text = repaired,
+                score = japaneseScore(repaired)
+            )
+            if (repairedCandidate.score > bestCandidate.score) {
+                bestCandidate = repairedCandidate
+            }
+        }
+    }
+    return bestCandidate.text
+}
+
+private fun extractByteSegmentsFromZXingResult(result: Result): List<ByteArray>? {
+    val metadata = result.resultMetadata ?: return null
+    return runCatching {
+        @Suppress("UNCHECKED_CAST")
+        metadata[ResultMetadataType.BYTE_SEGMENTS] as? List<ByteArray>
+    }.getOrNull()?.takeIf { it.isNotEmpty() }
+}
+
+private fun mergeByteSegments(byteSegments: List<ByteArray>): ByteArray {
+    val totalSize = byteSegments.sumOf { it.size }
+    val merged = ByteArray(totalSize)
+    var offset = 0
+    byteSegments.forEach { segment ->
+        segment.copyInto(merged, offset)
+        offset += segment.size
+    }
+    return merged
+}
+
+class BarcodeAnalyzer(
+    context: Context,
+    private val mode: ScanMode = ScanMode.PTP_GTIN,
+    private val cooldownMs: Long = 2000L,
+    private val onResult: (List<DetectedQr>) -> Unit
+) : ImageAnalysis.Analyzer {
+    private val jahisMultiReader = QRCodeMultiReader()
+    private val zxingReader = BarcodeReader().apply {
+        options = BarcodeReader.Options(
+            formats = setOf(
+                BarcodeReader.Format.DATA_BAR,
+                BarcodeReader.Format.DATA_BAR_LIMITED,
+                BarcodeReader.Format.DATA_BAR_EXPANDED,
+                BarcodeReader.Format.CODE_128,
+                BarcodeReader.Format.DATA_MATRIX,
+                BarcodeReader.Format.QR_CODE,
+                BarcodeReader.Format.EAN_13,
+                BarcodeReader.Format.EAN_8,
+                BarcodeReader.Format.UPC_A,
+                BarcodeReader.Format.UPC_E,
+                BarcodeReader.Format.CODE_39
+            ),
+            tryHarder = true,
+            tryRotate = true,
+            tryInvert = true,
+            tryDownscale = true
+        )
+    }
+    private var lastFingerprint: String? = null
+    private var lastDetectedAt: Long = 0L
+
+    override fun analyze(image: ImageProxy) {
+        when (mode) {
+            ScanMode.PTP_GTIN -> analyzeWithZxing(image)
+            ScanMode.JAHIS_QR -> analyzeWithZxingForJahis(image)
+        }
+    }
+
+    fun close() {
+    }
+
+    private fun analyzeWithZxing(image: ImageProxy) {
+        try {
+            val results = zxingReader.read(image)
+            val detections = results
+                .mapNotNull { result ->
+                    val text = result.text?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                    DetectedQr(text = text, left = 0)
+                }
+
+            emitIfFresh(detections)
+        } catch (e: Throwable) {
+            Log.w(TAG, "ZXing analyze failed for mode=$mode", e)
+        } finally {
+            image.close()
+        }
+    }
+
+    private fun analyzeWithZxingForJahis(image: ImageProxy) {
+        try {
+            val detections = decodeWithZxingForJahis(image)
+            emitIfFresh(detections)
+        } catch (e: Throwable) {
+            Log.w(TAG, "JAHIS ZXing analyze failed", e)
+        } finally {
+            image.close()
+        }
+    }
+
+    private fun decodeWithZxingForJahis(image: ImageProxy): List<DetectedQr> {
+        return try {
+            val rotationDegrees = image.imageInfo.rotationDegrees
+            val binaryBitmap = buildZxingBinaryBitmap(image, rotationDegrees) ?: return emptyList()
+            val hints = mapOf(
+                DecodeHintType.POSSIBLE_FORMATS to listOf(ZXingBarcodeFormat.QR_CODE),
+                DecodeHintType.TRY_HARDER to true,
+                DecodeHintType.CHARACTER_SET to "Shift_JIS"
+            )
+            val results = jahisMultiReader.decodeMultiple(binaryBitmap, hints)
+            Log.d(TAG, "zxing-jahis decode count=${results.size}")
+            results.mapNotNull { result ->
+                val rawText = result.text.orEmpty()
+                val metadataKeys = result.resultMetadata
+                    ?.keys
+                    ?.joinToString(prefix = "[", postfix = "]") { it.toString() }
+                    ?: "[]"
+                val structuredAppendInfo = extractStructuredAppendInfo(result)
+                Log.d(
+                    TAG,
+                    buildString {
+                        append("zxing-jahis result ")
+                        append("text-len=${rawText.length} ")
+                        append("text-head='${escapeForLog(rawText.take(40))}' ")
+                        append("text-tail='${escapeForLog(rawText.takeLast(40))}' ")
+                        append("saSequence=${structuredAppendInfo?.sequence?.toString() ?: "null"} ")
+                        append("saTotal=${structuredAppendInfo?.total?.toString() ?: "null"} ")
+                        append("saParity=${structuredAppendInfo?.parity?.toString() ?: "null"} ")
+                        append("metadata-keys=$metadataKeys")
+                    }
+                )
+                val text = decodeJahisZxingResult(result)?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                val left = result.resultPoints
+                    ?.minOfOrNull { it.x.toInt() }
+                    ?: Int.MAX_VALUE
+                Log.d(
+                    TAG,
+                    "zxing-jahis text-preview=${previewText(text)} saSequence=${structuredAppendInfo?.sequence} saTotal=${structuredAppendInfo?.total} saParity=${structuredAppendInfo?.parity}"
+                )
+                buildJahisDetection(text, left, structuredAppendInfo)
+            }
+        } catch (e: Throwable) {
+            Log.w(TAG, "JAHIS ZXing fallback failed", e)
+            emptyList()
+        }
+    }
+
+    private fun buildZxingBinaryBitmap(image: ImageProxy, rotationDegrees: Int): BinaryBitmap? {
+        if (image.image == null) return null
+        val yPlane = image.planes.firstOrNull() ?: return null
+        val yBytes = extractYPlaneBytes(
+            buffer = yPlane.buffer,
+            rowStride = yPlane.rowStride,
+            pixelStride = yPlane.pixelStride,
+            width = image.width,
+            height = image.height
+        )
+        val normalizedRotation = ((rotationDegrees % 360) + 360) % 360
+        val rotatedBytes = rotateYPlaneBytes(
+            source = yBytes,
+            width = image.width,
+            height = image.height,
+            rotationDegrees = normalizedRotation
+        )
+        val rotatedWidth = if (normalizedRotation == 90 || normalizedRotation == 270) image.height else image.width
+        val rotatedHeight = if (normalizedRotation == 90 || normalizedRotation == 270) image.width else image.height
+        val source = PlanarYUVLuminanceSource(
+            rotatedBytes,
+            rotatedWidth,
+            rotatedHeight,
+            0,
+            0,
+            rotatedWidth,
+            rotatedHeight,
+            false
+        )
+        return BinaryBitmap(HybridBinarizer(source))
+    }
+
+    private fun extractYPlaneBytes(
+        buffer: java.nio.ByteBuffer,
+        rowStride: Int,
+        pixelStride: Int,
+        width: Int,
+        height: Int
+    ): ByteArray {
+        val bytes = ByteArray(width * height)
+        var offset = 0
+        for (row in 0 until height) {
+            val rowStart = row * rowStride
+            for (col in 0 until width) {
+                bytes[offset++] = buffer.get(rowStart + col * pixelStride)
+            }
+        }
+        return bytes
+    }
+
+    internal fun rotateYPlaneBytes(
+        source: ByteArray,
+        width: Int,
+        height: Int,
+        rotationDegrees: Int
+    ): ByteArray {
+        return when (((rotationDegrees % 360) + 360) % 360) {
+            90 -> {
+                val rotated = ByteArray(source.size)
+                val newWidth = height
+                for (y in 0 until height) {
+                    for (x in 0 until width) {
+                        val sourceIndex = y * width + x
+                        val destX = height - 1 - y
+                        val destY = x
+                        val destIndex = destY * newWidth + destX
+                        rotated[destIndex] = source[sourceIndex]
+                    }
+                }
+                rotated
+            }
+            180 -> {
+                val rotated = ByteArray(source.size)
+                for (y in 0 until height) {
+                    for (x in 0 until width) {
+                        val sourceIndex = y * width + x
+                        val destX = width - 1 - x
+                        val destY = height - 1 - y
+                        val destIndex = destY * width + destX
+                        rotated[destIndex] = source[sourceIndex]
+                    }
+                }
+                rotated
+            }
+            270 -> {
+                val rotated = ByteArray(source.size)
+                val newWidth = height
+                for (y in 0 until height) {
+                    for (x in 0 until width) {
+                        val sourceIndex = y * width + x
+                        val destX = y
+                        val destY = width - 1 - x
+                        val destIndex = destY * newWidth + destX
+                        rotated[destIndex] = source[sourceIndex]
+                    }
+                }
+                rotated
+            }
+            else -> source.copyOf()
+        }
+    }
+
+    private fun buildJahisDetection(
+        rawText: String,
+        left: Int,
+        structuredAppendInfo: StructuredAppendInfo? = null
+    ): DetectedQr? {
+        val repaired = repairMojibakeIfNeeded(rawText)
+
+        val normalized = repaired.trim()
+        if (normalized.isBlank()) return null
+        if (normalized.matches(Regex("""^\d{14}$"""))) {
+            return null
+        }
+
+        return DetectedQr(
+            text = normalized,
+            left = left,
+            saSequence = structuredAppendInfo?.sequence,
+            saTotal = structuredAppendInfo?.total,
+            saParity = structuredAppendInfo?.parity
+        )
+    }
+
+    private fun extractStructuredAppendInfo(result: Result): StructuredAppendInfo? {
+        val metadata = result.resultMetadata ?: return null
+        val rawSequence = metadata[ResultMetadataType.STRUCTURED_APPEND_SEQUENCE] as? Int
+        val parity = metadata[ResultMetadataType.STRUCTURED_APPEND_PARITY] as? Int
+        if (rawSequence == null && parity == null) return null
+
+        val normalizedSequence = when {
+            rawSequence == null -> null
+            rawSequence > 0xF -> rawSequence and 0x0F
+            else -> rawSequence
+        }
+        val total = when {
+            rawSequence == null -> null
+            rawSequence > 0xF -> ((rawSequence ushr 4) and 0x0F) + 1
+            else -> null
+        }
+        return StructuredAppendInfo(
+            sequence = normalizedSequence,
+            total = total,
+            parity = parity
+        )
+    }
+
+    private fun emitIfFresh(detections: List<DetectedQr>) {
+        val ordered = detections
+            .asSequence()
+            .filter { it.text.isNotBlank() }
+            .distinctBy { "${it.left}:${it.text}" }
+            .sortedBy { it.left }
+            .toList()
+
+        if (ordered.isEmpty()) return
+
+        val fingerprint = ordered.joinToString("|") { "${it.left}:${it.text}" }
+        val now = System.currentTimeMillis()
+        if (fingerprint == lastFingerprint && now - lastDetectedAt <= cooldownMs) {
+            return
+        }
+
+        lastFingerprint = fingerprint
+        lastDetectedAt = now
+        onResult(ordered)
+    }
+}
