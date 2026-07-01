@@ -182,11 +182,12 @@ class DrugMasterMatcher(
         ).distinct()
         if (terms.isEmpty()) return emptyList()
         val expectedDosageForm = components.dosageForm ?: contextComponents?.dosageForm
-        val expectedSpec = extractSpec(keyword) ?: contextName?.let { extractSpec(it) }
+        val expectedSpec = extractSpec(keyword)
         val requiredTerms = if (contextName.isNullOrBlank()) {
             emptyList()
         } else {
-            keyword
+            listOf(keyword, contextComponents?.core.orEmpty())
+                .joinToString(" ")
                 .split(Regex("""[\s　]+"""))
                 .map { it.trim() }
                 .filter { it.length >= 2 }

@@ -5,6 +5,12 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization") version "1.9.22"
 }
 
+import org.gradle.api.tasks.Sync
+import org.gradle.api.file.DuplicatesStrategy
+import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.api.tasks.testing.Test
+import java.io.File
+
 android {
     namespace = "com.example.yakuzaiapp"
     compileSdk = 34
@@ -82,4 +88,52 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
 
     debugImplementation("androidx.compose.ui:ui-tooling:1.6.1")
+}
+
+val debugUnitTestAsciiClassesDir = File(
+    System.getProperty("java.io.tmpdir"),
+    "gx_handy_ge_ver2/debugUnitTest/classes",
+)
+
+val debugKotlinAsciiClassesDir = File(
+    System.getProperty("java.io.tmpdir"),
+    "gx_handy_ge_ver2/debug/classes",
+)
+
+val syncDebugKotlinClassesToAsciiPath by tasks.registering(Sync::class) {
+    dependsOn("compileDebugKotlin")
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from(layout.buildDirectory.dir("tmp/kotlin-classes/debug"))
+    into(debugKotlinAsciiClassesDir)
+}
+
+val syncDebugUnitTestClassesToAsciiPath by tasks.registering(Sync::class) {
+    dependsOn(
+        "compileDebugKotlin",
+        "compileDebugJavaWithJavac",
+        "compileDebugUnitTestKotlin",
+        "compileDebugUnitTestJavaWithJavac",
+        "processDebugUnitTestJavaRes",
+    )
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from(layout.buildDirectory.dir("tmp/kotlin-classes/debug"))
+    from(layout.buildDirectory.dir("intermediates/javac/debug/compileDebugJavaWithJavac/classes"))
+    from(layout.buildDirectory.dir("tmp/kotlin-classes/debugUnitTest"))
+    from(layout.buildDirectory.dir("intermediates/javac/debugUnitTest/classes"))
+    from(layout.buildDirectory.dir("intermediates/javac/debugUnitTest/compileDebugUnitTestJavaWithJavac/classes"))
+    from(layout.buildDirectory.dir("intermediates/java_res/debugUnitTest/processDebugUnitTestJavaRes/out"))
+    into(debugUnitTestAsciiClassesDir)
+}
+
+afterEvaluate {
+    tasks.named<JavaCompile>("compileDebugJavaWithJavac") {
+        dependsOn(syncDebugKotlinClassesToAsciiPath)
+        classpath = files(debugKotlinAsciiClassesDir) + classpath
+    }
+
+    tasks.named<Test>("testDebugUnitTest") {
+        dependsOn(syncDebugUnitTestClassesToAsciiPath)
+        testClassesDirs = files(debugUnitTestAsciiClassesDir)
+        classpath = files(debugUnitTestAsciiClassesDir) + classpath
+    }
 }

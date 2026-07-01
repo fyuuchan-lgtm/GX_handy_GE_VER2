@@ -24,6 +24,7 @@ class FillModeViewModel(
 
     private var lastScanSignature: String? = null
     private var lastScanAtMs: Long = 0L
+    private var lastSelectedSourceGtinSeenAtMs: Long? = null
 
     fun onBarcodeScanned(rawBarcode: String) {
         viewModelScope.launch {
@@ -37,14 +38,26 @@ class FillModeViewModel(
         }
 
         val now = nowMs()
-        if (_uiState.value.phase == FillModeStage.SELECT_TARGET &&
-            now < _uiState.value.targetScanEnabledAtMs
-        ) {
-            updateStatus("薬品をカメラから外して、充填先のカセットまたは瓶のコードを準備してください")
-            return
+        val rawCode = normalizeDirectCode(rawBarcode)
+        val normalizedGtin = normalizeFillGtin(rawBarcode)
+
+        if (_uiState.value.phase == FillModeStage.SELECT_TARGET) {
+            val isSameAsSelectedSource = normalizedGtin != null &&
+                normalizedGtin == _uiState.value.selectedSourceGtin
+            val lastSourceSeenAt = lastSelectedSourceGtinSeenAtMs
+            val needsSourceSeparation = isSameAsSelectedSource &&
+                lastSourceSeenAt != null &&
+                now - lastSourceSeenAt < SAME_SOURCE_REARM_QUIET_MS
+
+            if (now < _uiState.value.targetScanEnabledAtMs || needsSourceSeparation) {
+                if (isSameAsSelectedSource) {
+                    lastSelectedSourceGtinSeenAtMs = now
+                }
+                updateStatus("薬品をカメラから外して、充填先のカセットまたは瓶のコードを準備してください")
+                return
+            }
         }
 
-        val rawCode = normalizeDirectCode(rawBarcode)
         if (_uiState.value.phase == FillModeStage.SELECT_TARGET &&
             rawCode != null &&
             _uiState.value.selectedCodes.contains(rawCode)
@@ -53,20 +66,12 @@ class FillModeViewModel(
             return
         }
 
-        val normalizedGtin = normalizeFillGtin(rawBarcode)
         if (normalizedGtin == null) {
             if (_uiState.value.phase == FillModeStage.SELECT_TARGET) {
                 updateStatus(TARGET_SCAN_MESSAGE)
                 return
             }
             updateStatus("バーコードを読み取れませんでした: $rawBarcode")
-            return
-        }
-
-        if (_uiState.value.phase == FillModeStage.SELECT_TARGET &&
-            normalizedGtin == _uiState.value.selectedSourceGtin
-        ) {
-            updateStatus(TARGET_SCAN_MESSAGE)
             return
         }
 
@@ -98,6 +103,7 @@ class FillModeViewModel(
         _uiState.value = FillModeUiState()
         lastScanSignature = null
         lastScanAtMs = 0L
+        lastSelectedSourceGtinSeenAtMs = null
     }
 
     private fun selectDrug(drug: DrugMaster, gtin: String) {
@@ -112,6 +118,7 @@ class FillModeViewModel(
             targetScanEnabledAtMs = nowMs() + TARGET_SCAN_DELAY_MS,
             statusText = TARGET_SCAN_MESSAGE
         )
+        lastSelectedSourceGtinSeenAtMs = nowMs()
     }
 
     private fun verifyTarget(drug: DrugMaster, gtin: String) {
@@ -189,6 +196,7 @@ class FillModeViewModel(
 
     companion object {
         private const val TARGET_SCAN_DELAY_MS = 2500L
+        private const val SAME_SOURCE_REARM_QUIET_MS = 2200L
         private const val TARGET_SCAN_MESSAGE = "充填先のカセットまたは瓶のコードをスキャンしてください"
 
         val Factory: ViewModelProvider.Factory = viewModelFactory {

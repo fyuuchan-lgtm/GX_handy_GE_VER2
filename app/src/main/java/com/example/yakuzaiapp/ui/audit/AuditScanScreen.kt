@@ -16,8 +16,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -27,7 +29,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -102,12 +103,7 @@ fun AuditScanScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.audit_scan_title)) },
-                actions = {
-                    TextButton(onClick = onBack) {
-                        Text(stringResource(R.string.scan_back))
-                    }
-                }
+                title = { Text(stringResource(R.string.audit_scan_title)) }
             )
         }
     ) { padding ->
@@ -125,7 +121,8 @@ fun AuditScanScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),
-                viewModel = viewModel
+                viewModel = viewModel,
+                onBack = onBack
             )
         }
     }
@@ -153,7 +150,8 @@ private fun AuditPermissionDeniedContent(
 @Composable
 private fun AuditCameraContent(
     modifier: Modifier,
-    viewModel: AuditScanViewModel
+    viewModel: AuditScanViewModel,
+    onBack: () -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -185,35 +183,54 @@ private fun AuditCameraContent(
                 )
             }
         } else {
-            AndroidView(
-                factory = { previewView },
-                modifier = Modifier.fillMaxSize()
-            )
+            Column(modifier = Modifier.fillMaxSize()) {
+                AndroidView(
+                    factory = { previewView },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                )
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Button(
-                    onClick = {
-                        captureAndRunOcr(
-                            imageCapture = imageCapture,
-                            viewModel = viewModel,
-                            executor = executor
-                        )
-                    },
-                    enabled = imageCapture != null,
-                    shape = RectangleShape,
-                    modifier = Modifier.fillMaxWidth()
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White)
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        stringResource(R.string.audit_capture_button),
-                        style = MaterialTheme.typography.headlineSmall.copy(fontSize = 24.sp),
-                        fontWeight = FontWeight.Bold
-                    )
+                    Button(
+                        onClick = {
+                            captureAndRunOcr(
+                                imageCapture = imageCapture,
+                                viewModel = viewModel,
+                                executor = executor
+                            )
+                        },
+                        enabled = imageCapture != null,
+                        shape = RectangleShape,
+                        modifier = Modifier
+                            .weight(2f)
+                            .height(58.dp)
+                    ) {
+                        Text(
+                            stringResource(R.string.audit_capture_button),
+                            style = MaterialTheme.typography.headlineSmall.copy(fontSize = 24.sp),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Button(
+                        onClick = onBack,
+                        shape = RectangleShape,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(58.dp)
+                    ) {
+                        Text(
+                            stringResource(R.string.scan_back),
+                            style = MaterialTheme.typography.headlineSmall.copy(fontSize = 24.sp),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
 

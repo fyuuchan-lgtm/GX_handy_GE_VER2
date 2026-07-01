@@ -2,15 +2,47 @@ package com.example.yakuzaiapp.ui.navigation
 
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.yakuzaiapp.YakuzaiApplication
+import com.example.yakuzaiapp.data.medis.MedisAutoUpdateState
 import com.example.yakuzaiapp.domain.dispensing.ScanMatchResult
 import com.example.yakuzaiapp.domain.scan.ScanMode
 import com.example.yakuzaiapp.ui.audit.AuditResultScreen
@@ -62,10 +94,31 @@ object Routes {
 fun AppNavigation() {
     val navController = rememberNavController()
     val context = LocalContext.current
+    val application = context.applicationContext as YakuzaiApplication
+    val medisAutoUpdateCoordinator = application.medisAutoUpdateCoordinator
+    val autoUpdateState by medisAutoUpdateCoordinator.state.collectAsState()
+    val lifecycleOwner = LocalLifecycleOwner.current
     val dispensingViewModel: DispensingViewModel = viewModel(factory = DispensingViewModel.Factory)
     val auditScanViewModel: AuditScanViewModel = viewModel(factory = AuditScanViewModel.Factory)
 
-    NavHost(navController = navController, startDestination = Routes.HOME) {
+    DisposableEffect(lifecycleOwner, medisAutoUpdateCoordinator) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_START) {
+                medisAutoUpdateCoordinator.maybeStartAutoUpdate(force = false)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    BackHandler(enabled = autoUpdateState is MedisAutoUpdateState.Running) {
+        // Data updates must finish before the app can be used again.
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        NavHost(navController = navController, startDestination = Routes.HOME) {
         composable(Routes.HOME) {
             HomeScreen(
                 onOpenDrugSearch = { navController.navigate(Routes.DRUG_SEARCH) },
@@ -105,7 +158,16 @@ fun AppNavigation() {
             )
         }
         composable(Routes.MEDIS_IMPORT) {
-            MedisImportScreen(onBack = { navController.popBackStack() })
+            MedisImportScreen(
+                onBack = { navController.popBackStack() },
+                autoUpdateState = autoUpdateState,
+                onManualUpdate = {
+                    medisAutoUpdateCoordinator.maybeStartAutoUpdate(force = true)
+                },
+                onDismissAutoUpdateMessage = {
+                    medisAutoUpdateCoordinator.clearTransientState()
+                },
+            )
         }
         composable(Routes.AUDIT_SCAN) {
             AuditScanScreen(
@@ -172,8 +234,13 @@ fun AppNavigation() {
                     }
                 },
                 onBack = {
-                    Log.d(TAG, "dispensing_complete -> back")
-                    navController.popBackStack()
+                    Log.d(TAG, "dispensing_complete back -> home")
+                    dispensingViewModel.clearScanFeedback()
+                    dispensingViewModel.clearSession()
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(Routes.HOME) { inclusive = false }
+                        launchSingleTop = true
+                    }
                 },
             )
         }
@@ -318,6 +385,139 @@ fun AppNavigation() {
                 onBack = { navController.popBackStack() }
             )
         }
+    }
+        AutoUpdateOverlay(
+            state = autoUpdateState,
+            onDismiss = { medisAutoUpdateCoordinator.clearTransientState() },
+        )
+    }
+}
+
+@Composable
+private fun AutoUpdateOverlay(
+    state: MedisAutoUpdateState,
+    onDismiss: () -> Unit,
+) {
+    when (state) {
+        is MedisAutoUpdateState.Running -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.45f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = {},
+                    )
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            text = "データ更新中",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(
+                            text = state.message,
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center,
+                        )
+                        if (state.totalCount > 0) {
+                            val percent = (state.progressFraction * 100).toInt().coerceIn(0, 100)
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(32.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                LinearProgressIndicator(
+                                    progress = { state.progressFraction },
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                                Text(
+                                    text = "$percent%",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                )
+                            }
+                        } else {
+                            LinearProgressIndicator(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(32.dp),
+                            )
+                        }
+                        Text(
+                            text = "更新が終わるまで操作できません。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
+        is MedisAutoUpdateState.Error -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                contentAlignment = Alignment.BottomCenter,
+            ) {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            text = "データ更新に失敗しました",
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                        Text(text = state.message)
+                        Button(
+                            onClick = onDismiss,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("閉じる")
+                        }
+                    }
+                }
+            }
+        }
+        is MedisAutoUpdateState.Completed -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                contentAlignment = Alignment.BottomCenter,
+            ) {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            text = "データ更新完了しました",
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Button(
+                            onClick = onDismiss,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("閉じる")
+                        }
+                    }
+                }
+            }
+        }
+        MedisAutoUpdateState.Idle -> Unit
     }
 }
 

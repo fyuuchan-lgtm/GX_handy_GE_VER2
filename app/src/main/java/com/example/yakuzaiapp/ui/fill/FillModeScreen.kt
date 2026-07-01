@@ -18,9 +18,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
+import androidx.camera.core.UseCaseGroup
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -54,6 +57,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -64,6 +68,8 @@ import com.example.yakuzaiapp.util.BarcodeAnalyzer
 private const val TAG = "FillModeScreen"
 private const val ANALYSIS_WIDTH = 1280
 private const val ANALYSIS_HEIGHT = 720
+private const val VIEW_PORT_BIND_RETRY_LIMIT = 10
+private const val VIEW_PORT_BIND_RETRY_DELAY_MS = 50L
 
 @Composable
 fun FillModeScreen(
@@ -192,7 +198,8 @@ private fun FillModeCameraContent(
         BarcodeAnalyzer(
             context = context,
             mode = ScanMode.PTP_GTIN,
-            cooldownMs = 1000L
+            cooldownMs = 1000L,
+            useMlKitFallback = false
         ) { detections ->
             detections.forEach { detection ->
                 latestOnBarcodeDetected(detection.text)
@@ -201,33 +208,31 @@ private fun FillModeCameraContent(
     }
 
     Column(modifier = modifier.background(Color.White)) {
-        Text(
-            text = stringResource(R.string.fill_mode_title),
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .height(72.dp)
                 .background(Color.White)
-                .padding(horizontal = 20.dp, vertical = 18.dp),
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
+                .zIndex(1f),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Text(
+                text = stringResource(R.string.fill_mode_title),
+                modifier = Modifier.padding(horizontal = 20.dp),
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
 
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
-                .background(Color(0xFF202020))
+                .height(220.dp)
+                .background(if (uiState.isComplete) Color.White else Color(0xFF202020))
         ) {
-            if (uiState.isComplete) {
-                Text(
-                    text = "カメラ画面",
-                    modifier = Modifier.align(Alignment.Center),
-                    color = Color.White,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            } else {
+            if (!uiState.isComplete) {
                 AndroidView(
                     factory = { previewView },
                     modifier = Modifier.fillMaxSize()
@@ -241,9 +246,11 @@ private fun FillModeCameraContent(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .weight(1f)
                 .background(Color.White)
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(42.dp)
         ) {
             FillModeDrugRow(
                 label = "充填薬",
@@ -333,12 +340,32 @@ private fun FillModeCameraContent(
 
                 try {
                     provider.unbindAll()
-                    provider.bindToLifecycle(
-                        lifecycleOwner,
-                        CameraSelector.DEFAULT_BACK_CAMERA,
-                        preview,
-                        analysis
-                    )
+                    fun bindCroppedUseCases(retryCount: Int = 0) {
+                        val viewPort = previewView.viewPort
+                        if (viewPort == null) {
+                            if (retryCount < VIEW_PORT_BIND_RETRY_LIMIT) {
+                                previewView.postDelayed(
+                                    { bindCroppedUseCases(retryCount + 1) },
+                                    VIEW_PORT_BIND_RETRY_DELAY_MS
+                                )
+                            } else {
+                                Log.w(TAG, "Fill mode camera viewport unavailable after retries")
+                            }
+                            return
+                        }
+                        val useCaseGroup = UseCaseGroup.Builder()
+                            .setViewPort(viewPort)
+                            .addUseCase(preview)
+                            .addUseCase(analysis)
+                            .build()
+                        provider.bindToLifecycle(
+                            lifecycleOwner,
+                            CameraSelector.DEFAULT_BACK_CAMERA,
+                            useCaseGroup
+                        )
+                    }
+
+                    bindCroppedUseCases()
                 } catch (e: Throwable) {
                     Log.w(TAG, "Camera binding failure for fill mode", e)
                 }
@@ -359,15 +386,15 @@ private fun FillModeDrugRow(
     label: String,
     drugName: String
 ) {
-    Row(
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalAlignment = Alignment.Start
     ) {
         Box(
             modifier = Modifier
-                .weight(0.9f)
-                .height(56.dp)
+                .fillMaxWidth(0.3f)
+                .height(40.dp)
                 .background(Color(0xFF0B3D16)),
             contentAlignment = Alignment.Center
         ) {
@@ -382,19 +409,22 @@ private fun FillModeDrugRow(
         }
         Box(
             modifier = Modifier
-                .weight(2.1f)
-                .height(56.dp)
+                .fillMaxWidth()
+                .height(96.dp)
                 .background(Color(0xFFD50000)),
-            contentAlignment = Alignment.Center
+            contentAlignment = Alignment.CenterStart
         ) {
             Text(
                 text = drugName,
                 color = Color.White,
-                fontSize = 22.sp,
+                fontSize = 18.sp,
+                lineHeight = 22.sp,
                 fontWeight = FontWeight.Bold,
-                maxLines = 1,
+                maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(horizontal = 12.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp)
             )
         }
     }

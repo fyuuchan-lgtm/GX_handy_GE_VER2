@@ -297,6 +297,11 @@ private fun ReadyContent(
             PatientHeader(session = session)
         }
 
+        HorizontalDivider(
+            modifier = Modifier.padding(horizontal = 16.dp),
+            color = Color(0xFFBDBDBD)
+        )
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
@@ -363,6 +368,11 @@ private fun CompleteContent(
         ) {
             PatientHeader(session = session)
         }
+
+        HorizontalDivider(
+            modifier = Modifier.padding(horizontal = 16.dp),
+            color = Color(0xFFBDBDBD)
+        )
 
         LazyColumn(
             modifier = Modifier

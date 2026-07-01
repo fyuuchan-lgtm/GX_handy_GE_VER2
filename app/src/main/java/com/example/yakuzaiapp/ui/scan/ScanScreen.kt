@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -107,8 +108,10 @@ fun ScanScreen(
                     )
                 },
                 navigationIcon = {
-                    TextButton(onClick = onBack) {
-                        Text(stringResource(R.string.scan_back))
+                    if (mode == ScanMode.PTP_GTIN) {
+                        TextButton(onClick = onBack) {
+                            Text(stringResource(R.string.scan_back))
+                        }
                     }
                 }
             )
@@ -370,7 +373,9 @@ private fun CameraScanContent(
                             containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary
                         ),
-                        modifier = Modifier.weight(2f)
+                        modifier = Modifier
+                            .weight(2f)
+                            .height(58.dp)
                     ) {
                         Text(
                             text = stringResource(R.string.scan_jahis_parse_button),
@@ -385,10 +390,12 @@ private fun CameraScanContent(
                             onBack()
                         },
                         shape = RectangleShape,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(58.dp)
                     ) {
                         Text(
-                            text = "中止",
+                            text = stringResource(R.string.scan_back),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )

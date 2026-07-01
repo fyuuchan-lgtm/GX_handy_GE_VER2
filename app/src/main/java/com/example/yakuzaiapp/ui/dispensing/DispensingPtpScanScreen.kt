@@ -209,7 +209,7 @@ private fun PtpCameraAndDispensingList(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(0.45f)
+                .weight(0.30f)
         ) {
             if (!isAllChecked) {
                 AndroidView(
@@ -235,7 +235,7 @@ private fun PtpCameraAndDispensingList(
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(0.40f)
+                .weight(0.55f)
                 .background(Color.White),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)
         ) {

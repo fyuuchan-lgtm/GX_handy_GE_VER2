@@ -332,6 +332,22 @@ class DrugMasterMatcherTest {
     }
 
     @Test
+    fun searchCandidates_doesNotInheritContextSpecWhenKeywordHasNoSpec() = runTest {
+        val bicanate1000 = drug(
+            name = "ビカネイト注1000",
+            hot13 = "bicanate-1000",
+            yjCode = "3319400A2020",
+            packageSpec = "1000mL",
+            dosageForm = "注"
+        )
+
+        val result = matcher(bicanate1000)
+            .searchCandidates(keyword = "ビカネ", contextName = "ビカネイト注500")
+
+        assertEquals(listOf("3319400A2020"), result.map { it.yjCode })
+    }
+
+    @Test
     fun match_returnsAmbiguousWhenMultipleYjCodesRemain() = runTest {
         val result = matcher(
             drug("カロナール錠200", yjCode = "1141007F1039", packageSpec = "200mg"),

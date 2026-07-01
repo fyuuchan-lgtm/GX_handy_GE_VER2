@@ -109,7 +109,7 @@ class FillModeViewModelTest {
     }
 
     @Test
-    fun sameSourceGtinDoesNotCompleteTargetScan() = runTest(dispatcher) {
+    fun sameSourceGtinCompletesTargetScanAfterDelay() = runTest(dispatcher) {
         var now = 0L
         val selected = drugMaster(
             gtin = "14987376861653",
@@ -128,9 +128,36 @@ class FillModeViewModelTest {
         advanceUntilIdle()
 
         val state = viewModel.uiState.value
+        assertEquals(FillModeStage.COMPLETED, state.phase)
+        assertTrue(state.isComplete)
+        assertTrue(state.statusText.contains("充填OK"))
+    }
+
+    @Test
+    fun repeatedSameSourceGtinWithoutSeparationDoesNotCompleteTargetScan() = runTest(dispatcher) {
+        var now = 0L
+        val selected = drugMaster(
+            gtin = "14987376861653",
+            yjCode = "2354003F2014",
+            drugName = "センノシド錠12mg"
+        )
+        val viewModel = FillModeViewModel(
+            drugMasterLookup = fakeLookup("14987376861653" to selected),
+            nowMs = { now }
+        )
+
+        viewModel.processBarcode("14987376861653")
+        advanceUntilIdle()
+        listOf(1000L, 2000L, 3000L).forEach { tick ->
+            now = tick
+            viewModel.processBarcode("14987376861653")
+            advanceUntilIdle()
+        }
+
+        val state = viewModel.uiState.value
         assertEquals(FillModeStage.SELECT_TARGET, state.phase)
         assertFalse(state.isComplete)
-        assertEquals("充填先のカセットまたは瓶のコードをスキャンしてください", state.statusText)
+        assertEquals("薬品をカメラから外して、充填先のカセットまたは瓶のコードを準備してください", state.statusText)
     }
 
     @Test

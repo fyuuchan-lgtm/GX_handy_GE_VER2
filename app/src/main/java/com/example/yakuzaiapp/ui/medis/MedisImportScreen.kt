@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -43,11 +44,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.yakuzaiapp.YakuzaiApplication
+import com.example.yakuzaiapp.data.medis.MedisAutoUpdateState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MedisImportScreen(
     onBack: () -> Unit,
+    autoUpdateState: MedisAutoUpdateState = MedisAutoUpdateState.Idle,
+    onManualUpdate: () -> Unit = {},
+    onDismissAutoUpdateMessage: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val viewModel: MedisImportViewModel = viewModel(
@@ -99,6 +104,7 @@ fun MedisImportScreen(
         MedisImportContent(
             paddingValues = padding,
             uiState = uiState,
+            autoUpdateState = autoUpdateState,
             onSelectMedisHotFile = {
                 medisPickerLauncher.launch(
                     arrayOf("text/*", "text/plain", "text/csv", "application/octet-stream", "*/*")
@@ -110,6 +116,8 @@ fun MedisImportScreen(
                 )
             },
             onImportSelectedFiles = { viewModel.importSelectedFiles() },
+            onManualUpdate = onManualUpdate,
+            onDismissAutoUpdateMessage = onDismissAutoUpdateMessage,
             onBackToHome = onBack,
             onReset = { viewModel.reset() },
         )
@@ -120,9 +128,12 @@ fun MedisImportScreen(
 private fun MedisImportContent(
     paddingValues: PaddingValues,
     uiState: MedisImportUiState,
+    autoUpdateState: MedisAutoUpdateState,
     onSelectMedisHotFile: () -> Unit,
     onSelectSalesNameFile: () -> Unit,
     onImportSelectedFiles: () -> Unit,
+    onManualUpdate: () -> Unit,
+    onDismissAutoUpdateMessage: () -> Unit,
     onBackToHome: () -> Unit,
     onReset: () -> Unit,
 ) {
@@ -137,9 +148,12 @@ private fun MedisImportContent(
         when (uiState.status) {
             ImportStatus.Idle -> IdleView(
                 uiState = uiState,
+                autoUpdateState = autoUpdateState,
                 onSelectMedisHotFile = onSelectMedisHotFile,
                 onSelectSalesNameFile = onSelectSalesNameFile,
                 onImportSelectedFiles = onImportSelectedFiles,
+                onManualUpdate = onManualUpdate,
+                onDismissAutoUpdateMessage = onDismissAutoUpdateMessage,
             )
             ImportStatus.Reading,
             ImportStatus.Parsing,
@@ -162,11 +176,15 @@ private fun MedisImportContent(
 @Composable
 private fun IdleView(
     uiState: MedisImportUiState,
+    autoUpdateState: MedisAutoUpdateState,
     onSelectMedisHotFile: () -> Unit,
     onSelectSalesNameFile: () -> Unit,
     onImportSelectedFiles: () -> Unit,
+    onManualUpdate: () -> Unit,
+    onDismissAutoUpdateMessage: () -> Unit,
 ) {
     val canImport = uiState.selectedMedisHotFileName != null || uiState.selectedSalesNameFileName != null
+    val autoUpdateRunning = autoUpdateState is MedisAutoUpdateState.Running
 
     Icon(
         imageVector = Icons.Default.FileOpen,
@@ -188,6 +206,52 @@ private fun IdleView(
         color = Color.Gray,
         textAlign = TextAlign.Center,
     )
+
+    Spacer(modifier = Modifier.height(24.dp))
+    Button(
+        onClick = onManualUpdate,
+        enabled = !autoUpdateRunning,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(if (autoUpdateRunning) "データ更新中..." else "最新版をネットから更新")
+    }
+
+    when (autoUpdateState) {
+        is MedisAutoUpdateState.Completed -> {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "データ更新完了しました",
+                fontSize = 12.sp,
+                color = Color.Gray,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = onDismissAutoUpdateMessage,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("更新結果を閉じる")
+            }
+        }
+        is MedisAutoUpdateState.Error -> {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = autoUpdateState.message,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.error,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = onDismissAutoUpdateMessage,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("メッセージを閉じる")
+            }
+        }
+        MedisAutoUpdateState.Idle,
+        is MedisAutoUpdateState.Running -> Unit
+    }
 
     Spacer(modifier = Modifier.height(24.dp))
     OutlinedButton(
@@ -241,31 +305,29 @@ private fun ProcessingView(uiState: MedisImportUiState) {
     Spacer(modifier = Modifier.height(32.dp))
 
     if (uiState.totalCount > 0) {
-        val percent = (uiState.progressFraction * 100).toInt()
-        Text(
-            text = "$percent %",
-            fontSize = 32.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "${formatNumber(uiState.processedCount)} / ${formatNumber(uiState.totalCount)} 行",
-            fontSize = 14.sp,
-            color = Color.Gray,
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        LinearProgressIndicator(
-            progress = { uiState.progressFraction },
+        val percent = (uiState.progressFraction * 100).toInt().coerceIn(0, 100)
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(8.dp),
-        )
+                .height(32.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            LinearProgressIndicator(
+                progress = { uiState.progressFraction },
+                modifier = Modifier.fillMaxSize(),
+            )
+            Text(
+                text = "$percent%",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onPrimary,
+            )
+        }
     } else {
         LinearProgressIndicator(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(8.dp),
+                .height(32.dp),
         )
     }
 
