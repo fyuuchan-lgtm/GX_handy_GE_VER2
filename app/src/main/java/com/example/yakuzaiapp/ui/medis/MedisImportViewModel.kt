@@ -3,6 +3,7 @@ package com.example.yakuzaiapp.ui.medis
 import android.app.Application
 import android.net.Uri
 import android.provider.OpenableColumns
+import androidx.room.withTransaction
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -59,6 +60,11 @@ class MedisImportViewModel(application: Application) : AndroidViewModel(applicat
         salesNameRepository = SalesNameImportRepository(
             context = application.applicationContext,
             dao = app.database.salesPackageDao(),
+            transactionRunner = { block ->
+                app.database.withTransaction {
+                    block()
+                }
+            },
         )
     }
 

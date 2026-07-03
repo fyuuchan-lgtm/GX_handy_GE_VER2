@@ -15,8 +15,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.FileOpen
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -187,7 +187,7 @@ private fun IdleView(
     val autoUpdateRunning = autoUpdateState is MedisAutoUpdateState.Running
 
     Icon(
-        imageVector = Icons.Default.FileOpen,
+        imageVector = Icons.Default.Search,
         contentDescription = null,
         modifier = Modifier.height(80.dp),
         tint = MaterialTheme.colorScheme.primary,
@@ -402,7 +402,7 @@ private fun FailedView(
     onBackToHome: () -> Unit,
 ) {
     Icon(
-        imageVector = Icons.Default.Error,
+        imageVector = Icons.Default.Clear,
         contentDescription = null,
         modifier = Modifier.height(80.dp),
         tint = Color(0xFFD32F2F),

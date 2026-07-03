@@ -4,17 +4,24 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import com.example.yakuzaiapp.data.local.dao.SalesPackageDao
+import com.example.yakuzaiapp.data.local.entity.SalesPackage
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import java.io.IOException
 
 class SalesNameImportRepository(
-    private val context: Context,
+    private val context: Context?,
     private val dao: SalesPackageDao,
+    private val transactionRunner: suspend (suspend () -> Unit) -> Unit = { block -> block() },
 ) {
+    internal constructor(
+        dao: SalesPackageDao,
+        transactionRunner: suspend (suspend () -> Unit) -> Unit = { block -> block() },
+    ) : this(context = null, dao = dao, transactionRunner = transactionRunner)
+
     companion object {
         private const val TAG = "SalesNameImportRepository"
         private const val BATCH_SIZE = 1_000
@@ -34,22 +41,25 @@ class SalesNameImportRepository(
         data class Failed(val message: String) : Progress()
     }
 
-    fun importFromAssets(): Flow<Progress> = flow {
-        importInternal(
-            inputStreamProvider = { context.assets.open(MedisAssets.SALES_NAME_FILE) },
-            fileLabel = MedisAssets.SALES_NAME_FILE,
-        )
-    }.flowOn(Dispatchers.IO)
-
     fun importFromUri(uri: Uri): Flow<Progress> = flow {
+        val appContext = requireNotNull(context) {
+            "Context is required for URI imports."
+        }
         importInternal(
             inputStreamProvider = {
-                context.contentResolver.openInputStream(uri)
+                appContext.contentResolver.openInputStream(uri)
                     ?: throw IOException("Cannot open URI: $uri")
             },
             fileLabel = uri.toString(),
         )
     }.flowOn(Dispatchers.IO)
+
+    internal fun importFromStreamForTest(
+        inputStreamProvider: () -> java.io.InputStream,
+        fileLabel: String,
+    ): Flow<Progress> = flow {
+        importInternal(inputStreamProvider, fileLabel)
+    }
 
     suspend fun count(): Int = dao.count()
 
@@ -60,12 +70,13 @@ class SalesNameImportRepository(
         val startTime = System.currentTimeMillis()
         try {
             emit(Progress.Reading)
-            emit(Progress.Deleting)
-            dao.deleteAll()
             Log.i(TAG, "全件削除完了")
 
             val records = inputStreamProvider().use { stream ->
                 SalesNameCsvParser.parse(stream).toList()
+            }
+            if (records.isEmpty()) {
+                throw IOException("販売名ファイルに取り込める行がありません。")
             }
 
             emit(
@@ -77,10 +88,8 @@ class SalesNameImportRepository(
 
             Log.i(TAG, "Parse完了: file=$fileLabel records=${records.size}")
 
-            var inserted = 0
-            records.chunked(BATCH_SIZE).forEach { batch ->
-                dao.upsertAll(batch)
-                inserted += batch.size
+            emit(Progress.Deleting)
+            replaceAll(records) { inserted ->
                 emit(Progress.Inserting(inserted = inserted, total = records.size))
             }
 
@@ -95,6 +104,21 @@ class SalesNameImportRepository(
         } catch (e: Exception) {
             Log.e(TAG, "Import failed: $fileLabel", e)
             emit(Progress.Failed(e.message ?: "不明なエラー"))
+        }
+    }
+
+    private suspend fun replaceAll(
+        records: List<SalesPackage>,
+        onInserted: suspend (Int) -> Unit,
+    ) {
+        transactionRunner {
+            dao.deleteAll()
+            var inserted = 0
+            records.chunked(BATCH_SIZE).forEach { batch ->
+                dao.upsertAll(batch)
+                inserted += batch.size
+                onInserted(inserted)
+            }
         }
     }
 }
