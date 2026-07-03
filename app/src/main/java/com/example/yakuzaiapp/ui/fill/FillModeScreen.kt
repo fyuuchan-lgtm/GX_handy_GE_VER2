@@ -22,6 +22,8 @@ import androidx.camera.core.UseCaseGroup
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -32,11 +34,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -48,7 +55,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
@@ -59,10 +65,14 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.yakuzaiapp.R
+import com.example.yakuzaiapp.data.local.entity.StaffMaster
 import com.example.yakuzaiapp.domain.scan.ScanMode
+import com.example.yakuzaiapp.ui.home.HomeBottomTab
+import com.example.yakuzaiapp.ui.home.HomeBottomTabBar
 import com.example.yakuzaiapp.util.BarcodeAnalyzer
 
 private const val TAG = "FillModeScreen"
@@ -70,10 +80,16 @@ private const val ANALYSIS_WIDTH = 1280
 private const val ANALYSIS_HEIGHT = 720
 private const val VIEW_PORT_BIND_RETRY_LIMIT = 10
 private const val VIEW_PORT_BIND_RETRY_DELAY_MS = 50L
+private val FillModePanelBlue = Color(0xFF002466)
 
 @Composable
 fun FillModeScreen(
     onBack: () -> Unit,
+    onHomeClick: () -> Unit = onBack,
+    onAuditClick: () -> Unit = onBack,
+    onReportClick: () -> Unit = onBack,
+    onFillClick: () -> Unit = {},
+    onDataUpdateClick: () -> Unit = onBack,
     viewModel: FillModeViewModel = viewModel(factory = FillModeViewModel.Factory)
 ) {
     val context = LocalContext.current
@@ -104,7 +120,18 @@ fun FillModeScreen(
         }
     }
 
-    Scaffold { padding ->
+    Scaffold(
+        bottomBar = {
+            HomeBottomTabBar(
+                selectedTab = HomeBottomTab.FILL,
+                onHomeClick = onHomeClick,
+                onAuditClick = onAuditClick,
+                onReportClick = onReportClick,
+                onFillClick = onFillClick,
+                onDataUpdateClick = onDataUpdateClick
+            )
+        }
+    ) { padding ->
         if (hasCameraPermission) {
             FillModeCameraContent(
                 modifier = Modifier
@@ -112,8 +139,8 @@ fun FillModeScreen(
                     .padding(padding),
                 uiState = uiState,
                 onBarcodeDetected = viewModel::onBarcodeScanned,
-                onReset = viewModel::reset,
-                onBack = onBack
+                onDismissExpirationWarning = viewModel::dismissExpirationWarning,
+                onReset = viewModel::reset
             )
         } else {
             FillModePermissionContent(
@@ -177,12 +204,82 @@ private fun FillModePermissionContent(
 }
 
 @Composable
+private fun StaffSelector(
+    staffList: List<StaffMaster>,
+    selectedStaffId: String?,
+    selectedStaffName: String?,
+    selectedStaffKana: String?,
+    onStaffSelected: (StaffMaster) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedText = when {
+        selectedStaffName.isNullOrBlank() -> "実施者を選択"
+        selectedStaffKana.isNullOrBlank() -> selectedStaffName
+        else -> "$selectedStaffName（$selectedStaffKana）"
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "実施者",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold
+        )
+        Box(modifier = Modifier.weight(1f)) {
+            Button(
+                onClick = { expanded = true },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = staffList.isNotEmpty(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF0D47A1),
+                    contentColor = Color.White
+                )
+            ) {
+                Text(
+                    text = if (staffList.isEmpty()) "利用者登録してください" else selectedText,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                staffList.forEach { staff ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = listOfNotNull(
+                                    staff.displayName(),
+                                    staff.staffKana?.let { "（$it）" }
+                                ).joinToString("")
+                            )
+                        },
+                        onClick = {
+                            expanded = false
+                            onStaffSelected(staff)
+                        },
+                        enabled = staff.staffId != selectedStaffId
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun FillModeCameraContent(
     modifier: Modifier,
     uiState: FillModeUiState,
     onBarcodeDetected: (String) -> Unit,
-    onReset: () -> Unit,
-    onBack: () -> Unit
+    onDismissExpirationWarning: () -> Unit,
+    onReset: () -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -199,11 +296,18 @@ private fun FillModeCameraContent(
             context = context,
             mode = ScanMode.PTP_GTIN,
             cooldownMs = 1000L,
-            useMlKitFallback = false
+            useMlKitFallback = false,
+            useTextExpirationFallback = true
         ) { detections ->
             detections.forEach { detection ->
                 latestOnBarcodeDetected(detection.text)
             }
+        }
+    }
+
+    DisposableEffect(analyzer) {
+        onDispose {
+            analyzer.close()
         }
     }
 
@@ -229,7 +333,7 @@ private fun FillModeCameraContent(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(220.dp)
+                .height(if (uiState.isComplete) 96.dp else 221.dp)
                 .background(if (uiState.isComplete) Color.White else Color(0xFF202020))
         ) {
             if (!uiState.isComplete) {
@@ -249,16 +353,12 @@ private fun FillModeCameraContent(
                 .weight(1f)
                 .background(Color.White)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 18.dp),
-            verticalArrangement = Arrangement.spacedBy(42.dp)
+                .padding(horizontal = 8.dp, vertical = 10.dp)
         ) {
-            FillModeDrugRow(
-                label = "充填薬",
-                drugName = uiState.selectedDrugName ?: "未読取"
-            )
-            FillModeDrugRow(
-                label = "カセット",
-                drugName = if (uiState.isComplete) {
+            FillModeStatusPanel(
+                fillDrugName = uiState.selectedDrugName ?: "未読取",
+                fillExpirationDate = uiState.selectedSourceExpirationDate,
+                cassetteDrugName = if (uiState.isComplete) {
                     uiState.selectedDrugName ?: "未読取"
                 } else {
                     "未読取"
@@ -270,16 +370,16 @@ private fun FillModeCameraContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(Color.White)
-                .padding(horizontal = 16.dp, vertical = 16.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Button(
                 onClick = onReset,
                 enabled = uiState.isComplete,
                 modifier = Modifier
-                    .weight(2f)
-                    .height(58.dp),
-                shape = RectangleShape,
+                    .weight(1.55f)
+                    .height(54.dp),
+                shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF0D47A1),
                     contentColor = Color.White,
@@ -295,18 +395,18 @@ private fun FillModeCameraContent(
                 )
             }
             Button(
-                onClick = onBack,
+                onClick = onReset,
                 modifier = Modifier
                     .weight(1f)
-                    .height(58.dp),
-                shape = RectangleShape,
+                    .height(54.dp),
+                shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF0D47A1),
                     contentColor = Color.White
                 )
             ) {
                 Text(
-                    text = stringResource(R.string.scan_back),
+                    text = "やり直し",
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -314,17 +414,30 @@ private fun FillModeCameraContent(
         }
     }
 
+    uiState.expirationWarningMessage?.let { message ->
+        ExpirationWarningDialog(
+            message = message,
+            onDismiss = onDismissExpirationWarning
+        )
+    }
+
     DisposableEffect(lifecycleOwner, analyzer, uiState.isComplete) {
         if (uiState.isComplete) {
             runCatching { cameraProvider?.unbindAll() }
             cameraProvider = null
-            onDispose {
-                analyzer.close()
-            }
+            onDispose {}
         } else {
+            var disposed = false
+            var analysisUseCase: ImageAnalysis? = null
             val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
             val listener = Runnable {
+                if (disposed) {
+                    return@Runnable
+                }
                 val provider = cameraProviderFuture.get()
+                if (disposed) {
+                    return@Runnable
+                }
                 cameraProvider = provider
 
                 val preview = Preview.Builder().build().also {
@@ -337,20 +450,37 @@ private fun FillModeCameraContent(
                     .also {
                         it.setAnalyzer(executor, analyzer)
                     }
+                analysisUseCase = analysis
 
                 try {
+                    if (disposed) {
+                        analysis.clearAnalyzer()
+                        return@Runnable
+                    }
                     provider.unbindAll()
                     fun bindCroppedUseCases(retryCount: Int = 0) {
+                        if (disposed) {
+                            return
+                        }
                         val viewPort = previewView.viewPort
                         if (viewPort == null) {
                             if (retryCount < VIEW_PORT_BIND_RETRY_LIMIT) {
                                 previewView.postDelayed(
-                                    { bindCroppedUseCases(retryCount + 1) },
+                                    {
+                                        if (!disposed) {
+                                            bindCroppedUseCases(retryCount + 1)
+                                        }
+                                    },
                                     VIEW_PORT_BIND_RETRY_DELAY_MS
                                 )
                             } else {
                                 Log.w(TAG, "Fill mode camera viewport unavailable after retries")
                             }
+                            return
+                        }
+                        if (disposed ||
+                            !lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+                        ) {
                             return
                         }
                         val useCaseGroup = UseCaseGroup.Builder()
@@ -373,59 +503,125 @@ private fun FillModeCameraContent(
             cameraProviderFuture.addListener(listener, executor)
 
             onDispose {
+                disposed = true
+                analysisUseCase?.clearAnalyzer()
                 runCatching { cameraProvider?.unbindAll() }
                 cameraProvider = null
-                analyzer.close()
             }
         }
     }
 }
 
 @Composable
-private fun FillModeDrugRow(
-    label: String,
-    drugName: String
+private fun ExpirationWarningDialog(
+    message: String,
+    onDismiss: () -> Unit
 ) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-        horizontalAlignment = Alignment.Start
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(0.3f)
-                .height(40.dp)
-                .background(Color(0xFF0B3D16)),
-            contentAlignment = Alignment.Center
-        ) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFFD50000),
+        title = {
             Text(
-                text = label,
+                text = "警告",
+                color = Color.White,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Text(
+                text = message,
                 color = Color.White,
                 fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                fontWeight = FontWeight.Bold
             )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onDismiss,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = Color.White
+                )
+            ) {
+                Text(
+                    text = "確認",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(96.dp)
-                .background(Color(0xFFD50000)),
-            contentAlignment = Alignment.CenterStart
-        ) {
-            Text(
-                text = drugName,
-                color = Color.White,
-                fontSize = 18.sp,
-                lineHeight = 22.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp)
+    )
+}
+
+@Composable
+private fun FillModeStatusPanel(
+    fillDrugName: String,
+    fillExpirationDate: String?,
+    cassetteDrugName: String
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = FillModePanelBlue,
+                shape = RoundedCornerShape(12.dp)
             )
-        }
+            .border(
+                width = 2.dp,
+                color = FillModePanelBlue,
+                shape = RoundedCornerShape(12.dp)
+            )
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalAlignment = Alignment.Start
+    ) {
+        FillModeSectionLabel("充填薬")
+        FillModeDrugNameText(fillDrugName)
+        FillModeValueText("使用期限: ${fillExpirationDate ?: "未取得"}")
+        Spacer(modifier = Modifier.height(12.dp))
+        FillModeSectionLabel("カセット")
+        FillModeDrugNameText(cassetteDrugName)
     }
+}
+
+@Composable
+private fun FillModeSectionLabel(text: String) {
+    Text(
+        text = text,
+        color = Color.White,
+        fontSize = 22.sp,
+        fontWeight = FontWeight.Bold,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.fillMaxWidth()
+    )
+}
+
+@Composable
+private fun FillModeValueText(text: String) {
+    Text(
+        text = text,
+        color = Color.White,
+        fontSize = 18.sp,
+        lineHeight = 24.sp,
+        fontWeight = FontWeight.Normal,
+        maxLines = 3,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.fillMaxWidth()
+    )
+}
+
+@Composable
+private fun FillModeDrugNameText(text: String) {
+    Text(
+        text = text,
+        color = Color.White,
+        fontSize = 18.sp,
+        lineHeight = 24.sp,
+        fontWeight = FontWeight.Normal,
+        minLines = 2,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.fillMaxWidth()
+    )
 }
