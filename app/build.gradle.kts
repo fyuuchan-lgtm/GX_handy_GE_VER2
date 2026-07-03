@@ -6,10 +6,28 @@ plugins {
 }
 
 import org.gradle.api.tasks.Sync
+import org.gradle.api.GradleException
 import org.gradle.api.file.DuplicatesStrategy
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.testing.Test
 import java.io.File
+import java.util.Properties
+import java.util.zip.ZipFile
+
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.isFile) {
+        file.inputStream().use(::load)
+    }
+}
+
+fun secretProperty(name: String): String? {
+    val envName = name.replace(Regex("([a-z])([A-Z])"), "\$1_\$2").uppercase()
+    return providers.gradleProperty(name).orNull
+        ?: localProperties.getProperty(name)
+        ?: providers.environmentVariable(name).orNull
+        ?: providers.environmentVariable(envName).orNull
+}
 
 android {
     namespace = "com.example.yakuzaiapp"
@@ -23,9 +41,64 @@ android {
         versionName = "1.0"
     }
 
+    signingConfigs {
+        create("release") {
+            val releaseStoreFile = secretProperty("releaseStoreFile")
+            val releaseStorePassword = secretProperty("releaseStorePassword")
+            val releaseKeyAlias = secretProperty("releaseKeyAlias")
+            val releaseKeyPassword = secretProperty("releaseKeyPassword")
+            val hasReleaseSigning = listOf(
+                releaseStoreFile,
+                releaseStorePassword,
+                releaseKeyAlias,
+                releaseKeyPassword,
+            ).all { !it.isNullOrBlank() }
+            val allowDebugReleaseSigning = secretProperty("allowDebugReleaseSigning")
+                ?.toBooleanStrictOrNull() == true
+
+            val debugKeystore = File(System.getProperty("user.home"), ".android/debug.keystore")
+            if (hasReleaseSigning) {
+                storeFile = File(releaseStoreFile!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            } else if (allowDebugReleaseSigning) {
+                logger.warn(
+                    "Release APK is signed with the Android debug keystore. " +
+                        "Use this only for local device testing.",
+                )
+                storeFile = debugKeystore
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            } else {
+                throw GradleException(
+                    "Release signing is not configured. Set releaseStoreFile, " +
+                        "releaseStorePassword, releaseKeyAlias, and releaseKeyPassword, " +
+                        "or set allowDebugReleaseSigning=true only for local device testing.",
+                )
+            }
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            signingConfig = signingConfigs.getByName("release")
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
+        }
+    }
+
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a")
+            isUniversalApk = true
         }
     }
 
@@ -75,7 +148,7 @@ dependencies {
     implementation("androidx.compose.ui:ui:1.6.1")
     implementation("androidx.compose.ui:ui-graphics:1.6.1")
     implementation("androidx.compose.ui:ui-tooling-preview:1.6.1")
-    implementation("androidx.compose.material:material-icons-extended:1.6.1")
+    implementation("androidx.compose.material:material-icons-core:1.6.1")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
     implementation("androidx.navigation:navigation-compose:2.7.6")
@@ -88,6 +161,40 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
 
     debugImplementation("androidx.compose.ui:ui-tooling:1.6.1")
+}
+
+tasks.register("printApkSizeReport") {
+    group = "verification"
+    description = "Prints APK size and largest ZIP entries. Pass -PapkPath=... or build release first."
+
+    doLast {
+        val explicitApkPath = providers.gradleProperty("apkPath").orNull
+        val signedApk = layout.buildDirectory.file(
+            "outputs/apk/release/app-arm64-v8a-release.apk",
+        ).get().asFile
+        val unsignedApk = layout.buildDirectory.file(
+            "outputs/apk/release/app-arm64-v8a-release-unsigned.apk",
+        ).get().asFile
+        val apk = explicitApkPath?.let(::File)
+            ?: signedApk.takeIf { it.isFile }
+            ?: unsignedApk
+        require(apk.isFile) {
+            "APK not found: ${apk.absolutePath}. Run assembleRelease or pass -PapkPath=<apk>."
+        }
+
+        println("APK: ${apk.absolutePath}")
+        println("APK size MB: ${"%.2f".format(apk.length().toDouble() / 1024.0 / 1024.0)}")
+        ZipFile(apk).use { zip ->
+            zip.entries().asSequence()
+                .filterNot { it.isDirectory }
+                .sortedByDescending { it.size }
+                .take(30)
+                .forEach { entry ->
+                    val sizeMb = entry.size.toDouble() / 1024.0 / 1024.0
+                    println("${"%.2f".format(sizeMb)} MB  ${entry.name}")
+                }
+        }
+    }
 }
 
 val debugUnitTestAsciiClassesDir = File(
