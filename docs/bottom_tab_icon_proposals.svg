@@ -1,0 +1,143 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="720" viewBox="0 0 960 720">
+  <defs>
+    <linearGradient id="badgeGrad" x1="0" y1="12" x2="0" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#dff5fc"/>
+    </linearGradient>
+    <linearGradient id="paperGrad" x1="58" y1="20" x2="86" y2="52" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#d6f0f8"/>
+    </linearGradient>
+    <linearGradient id="bottleGrad" x1="61" y1="22" x2="83" y2="52" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#aee5f4"/>
+    </linearGradient>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#083a4f" flood-opacity="0.18"/>
+    </filter>
+    <style>
+      .title { font: 700 24px sans-serif; fill: #102a3a; }
+      .label { font: 600 18px sans-serif; fill: #102a3a; }
+      .note { font: 14px sans-serif; fill: #456; }
+      .bar { fill: #ffffff; stroke: #d7e8ef; stroke-width: 2; }
+      .tab { fill: #ffffff; }
+      .tab-active { fill: #0d6efd; }
+      .icon { fill: none; stroke: #145f7c; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+      .icon-active { fill: none; stroke: #ffffff; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+      .thin { stroke-width: 4; }
+    </style>
+  </defs>
+
+  <rect width="960" height="720" fill="#f7f9fc"/>
+  <text x="48" y="54" class="title">Bottom tab icon proposals</text>
+  <text x="48" y="80" class="note">Tabs: ホーム / 監査モード / 帳票モード / 充填モード / データ更新</text>
+  <text x="48" y="102" class="note">Selected: blue background + white icon/text. Unselected: white background + blue icon + dark text.</text>
+
+  <!-- Proposal A -->
+  <text x="48" y="130" class="label">A. Simple line icons</text>
+  <text x="48" y="154" class="note">Current UIに近い。文字ラベルと一緒でも見やすい案。</text>
+  <rect x="48" y="178" width="864" height="112" rx="0" class="bar"/>
+  <g transform="translate(78 194)">
+    <rect x="0" y="0" width="144" height="80" rx="10" class="tab-active"/>
+    <path d="M48 42 L72 22 L96 42 M56 38 V60 H88 V38" class="icon-active"/>
+    <text x="72" y="72" text-anchor="middle" font-size="15" fill="#ffffff" font-family="sans-serif">ホーム</text>
+  </g>
+  <g transform="translate(234 194)">
+    <rect x="0" y="0" width="144" height="80" rx="10" class="tab"/>
+    <path d="M54 24 H90 V58 H54 Z M62 34 H82 M62 44 H78" class="icon"/>
+    <path d="M91 57 L101 67" class="icon thin"/>
+    <text x="72" y="72" text-anchor="middle" font-size="15" fill="#102a3a" font-family="sans-serif">監査</text>
+  </g>
+  <g transform="translate(390 194)">
+    <rect x="0" y="0" width="144" height="80" rx="10" class="tab"/>
+    <path d="M54 20 H88 L98 30 V60 H54 Z M88 20 V30 H98 M62 40 H88 M62 50 H82" class="icon"/>
+    <text x="72" y="72" text-anchor="middle" font-size="15" fill="#102a3a" font-family="sans-serif">帳票</text>
+  </g>
+  <g transform="translate(546 194)">
+    <rect x="0" y="0" width="144" height="80" rx="10" class="tab"/>
+    <path d="M60 22 H84 V32 H60 Z M58 32 H86 V60 H58 Z M66 44 H78 M72 38 V54" class="icon"/>
+    <text x="72" y="72" text-anchor="middle" font-size="15" fill="#102a3a" font-family="sans-serif">充填</text>
+  </g>
+  <g transform="translate(702 194)">
+    <rect x="0" y="0" width="144" height="80" rx="10" class="tab"/>
+    <path d="M72 24 A18 18 0 1 0 72 60 A18 18 0 1 0 72 24 M72 36 A6 6 0 1 0 72 48 A6 6 0 1 0 72 36" class="icon"/>
+    <path d="M72 18 V24 M72 60 V66 M48 42 H54 M90 42 H96 M55 25 L59 30 M89 54 L94 59 M89 30 L94 25 M55 59 L59 54" class="icon thin"/>
+    <text x="72" y="72" text-anchor="middle" font-size="15" fill="#102a3a" font-family="sans-serif">設定</text>
+  </g>
+
+  <!-- Proposal B -->
+  <text x="48" y="352" class="label">B. Clean modern icons</text>
+  <text x="48" y="376" class="note">白背景に、シンプルで視認性の高い業務アイコン。選択中だけ色を反転。</text>
+  <rect x="48" y="400" width="864" height="112" rx="0" class="bar"/>
+  <g transform="translate(78 416)">
+    <rect x="0" y="0" width="144" height="80" rx="4" fill="#ffffff"/>
+    <rect x="50" y="8" width="44" height="44" rx="14" fill="#f2fbff"/>
+    <path d="M56 32 L72 18 L88 32 H84 V47 H76 V39 H68 V47 H60 V32 Z" fill="none" stroke="#145f7c" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="72" y="74" text-anchor="middle" font-size="14" fill="#102a3a" font-family="sans-serif">ホーム</text>
+  </g>
+  <g transform="translate(234 416)">
+    <rect x="0" y="0" width="144" height="80" rx="4" fill="#0d6efd"/>
+    <rect x="50" y="8" width="44" height="44" rx="14" fill="#ffffff" opacity="0.16"/>
+    <path d="M60 20 H84 V47 H60 Z" stroke="#ffffff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <path d="M66 16 H78" stroke="#ffffff" stroke-width="2.8" stroke-linecap="round"/>
+    <path d="M64 33 L70 39 L82 27" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <text x="72" y="74" text-anchor="middle" font-size="14" fill="#ffffff" font-family="sans-serif">監査モード</text>
+  </g>
+  <g transform="translate(390 416)">
+    <rect x="0" y="0" width="144" height="80" rx="4" fill="#ffffff"/>
+    <rect x="50" y="8" width="44" height="44" rx="14" fill="#f2fbff"/>
+    <path d="M60 17 H78 L86 25 V47 H60 Z" stroke="#145f7c" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <path d="M78 17 V25 H86" stroke="#145f7c" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <path d="M66 40 V34 M72 40 V28 M78 40 V35" stroke="#145f7c" stroke-width="2.8" stroke-linecap="round"/>
+    <text x="72" y="74" text-anchor="middle" font-size="14" fill="#102a3a" font-family="sans-serif">帳票モード</text>
+  </g>
+  <g transform="translate(546 416)">
+    <rect x="0" y="0" width="144" height="80" rx="4" fill="#ffffff"/>
+    <rect x="50" y="8" width="44" height="44" rx="14" fill="#f2fbff"/>
+    <path d="M66 18 H78" stroke="#145f7c" stroke-width="2.8" stroke-linecap="round"/>
+    <path d="M64 22 H80 V28 C83 30 85 34 85 39 V45 C85 47 83 49 81 49 H63 C61 49 59 47 59 45 V39 C59 34 61 30 64 28 Z" stroke="#145f7c" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <path d="M63 31 H81" stroke="#145f7c" stroke-width="2.8" stroke-linecap="round"/>
+    <path d="M72 36 V45 M67.5 40.5 H76.5" stroke="#145f7c" stroke-width="2.8" stroke-linecap="round"/>
+    <text x="72" y="74" text-anchor="middle" font-size="14" fill="#102a3a" font-family="sans-serif">充填モード</text>
+  </g>
+  <g transform="translate(702 416)">
+    <rect x="0" y="0" width="144" height="80" rx="4" fill="#ffffff"/>
+    <rect x="50" y="8" width="44" height="44" rx="14" fill="#f2fbff"/>
+    <path d="M59 31 C61 24 66 20 73 20 C78 20 82 23 85 27" stroke="#145f7c" stroke-width="2.8" stroke-linecap="round" fill="none"/>
+    <path d="M85 27 L85 20 L90 25" stroke="#145f7c" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <path d="M85 37 C83 44 78 48 71 48 C66 48 62 45 59 41" stroke="#145f7c" stroke-width="2.8" stroke-linecap="round" fill="none"/>
+    <path d="M59 41 L59 48 L54 43" stroke="#145f7c" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <path d="M66 30 H78 M66 38 H78" stroke="#145f7c" stroke-width="2.8" stroke-linecap="round"/>
+    <text x="72" y="74" text-anchor="middle" font-size="14" fill="#102a3a" font-family="sans-serif">データ更新</text>
+  </g>
+
+  <!-- Proposal C -->
+  <text x="48" y="574" class="label">C. Compact toolbar style</text>
+  <text x="48" y="598" class="note">業務端末っぽく、情報領域を広く残す薄型案。</text>
+  <rect x="48" y="622" width="864" height="64" rx="0" class="bar"/>
+  <g transform="translate(78 630)">
+    <rect x="0" y="0" width="144" height="48" rx="6" fill="#0d6efd"/>
+    <path d="M38 25 L52 14 L66 25 M43 23 V36 H61 V23" class="icon-active thin"/>
+    <text x="92" y="31" text-anchor="middle" font-size="16" fill="#ffffff" font-family="sans-serif">ホーム</text>
+  </g>
+  <g transform="translate(234 630)">
+    <rect x="0" y="0" width="144" height="48" rx="6" fill="#e7f6fb"/>
+    <path d="M40 12 H62 V34 H40 Z M46 20 H56 M46 27 H54 M64 34 L72 42" class="icon thin"/>
+    <text x="98" y="31" text-anchor="middle" font-size="16" fill="#102a3a" font-family="sans-serif">監査</text>
+  </g>
+  <g transform="translate(390 630)">
+    <rect x="0" y="0" width="144" height="48" rx="6" fill="#e7f6fb"/>
+    <path d="M42 10 H62 L70 18 V36 H42 Z M62 10 V18 H70 M48 26 H64" class="icon thin"/>
+    <text x="98" y="31" text-anchor="middle" font-size="16" fill="#102a3a" font-family="sans-serif">帳票</text>
+  </g>
+  <g transform="translate(546 630)">
+    <rect x="0" y="0" width="144" height="48" rx="6" fill="#e7f6fb"/>
+    <path d="M44 12 H62 V20 H44 Z M42 20 H64 V38 H42 Z M53 25 V34 M48 30 H58" class="icon thin"/>
+    <text x="98" y="31" text-anchor="middle" font-size="16" fill="#102a3a" font-family="sans-serif">充填</text>
+  </g>
+  <g transform="translate(702 630)">
+    <rect x="0" y="0" width="144" height="48" rx="6" fill="#e7f6fb"/>
+    <path d="M54 12 A12 12 0 1 0 54 36 A12 12 0 1 0 54 12 M54 21 A3 3 0 1 0 54 27 A3 3 0 1 0 54 21" class="icon thin"/>
+    <text x="98" y="31" text-anchor="middle" font-size="16" fill="#102a3a" font-family="sans-serif">設定</text>
+  </g>
+</svg>
