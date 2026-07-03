@@ -12,6 +12,7 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,11 +52,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.yakuzaiapp.domain.dispensing.ExpectedDrugItem
 import com.example.yakuzaiapp.domain.dispensing.ItemStatus
 import com.example.yakuzaiapp.domain.dispensing.ScanMatchResult
 import com.example.yakuzaiapp.domain.scan.ScanMode
+import com.example.yakuzaiapp.ui.home.HomeBottomTab
+import com.example.yakuzaiapp.ui.home.HomeBottomTabBar
 import com.example.yakuzaiapp.util.BarcodeAnalyzer
 import com.example.yakuzaiapp.util.SoundFeedback
 import com.example.yakuzaiapp.util.VibrationFeedback
@@ -69,7 +73,12 @@ private const val PTP_ZOOM_RATIO = 2.0f
 fun DispensingPtpScanScreen(
     viewModel: DispensingViewModel,
     onBack: () -> Unit,
-    onCompleted: () -> Unit
+    onCompleted: () -> Unit,
+    onHomeClick: () -> Unit,
+    onAuditClick: () -> Unit,
+    onReportClick: () -> Unit,
+    onFillClick: () -> Unit,
+    onDataUpdateClick: () -> Unit
 ) {
     val context = LocalContext.current
     val session by viewModel.session.collectAsStateWithLifecycle()
@@ -104,7 +113,18 @@ fun DispensingPtpScanScreen(
             }
         }
     }
-    Scaffold { padding ->
+    Scaffold(
+        bottomBar = {
+            HomeBottomTabBar(
+                selectedTab = HomeBottomTab.REPORT,
+                onHomeClick = onHomeClick,
+                onAuditClick = onAuditClick,
+                onReportClick = onReportClick,
+                onFillClick = onFillClick,
+                onDataUpdateClick = onDataUpdateClick
+            )
+        }
+    ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -209,7 +229,7 @@ private fun PtpCameraAndDispensingList(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(0.30f)
+                .weight(0.24f)
         ) {
             if (!isAllChecked) {
                 AndroidView(
@@ -269,10 +289,13 @@ private fun PtpCameraAndDispensingList(
                 // no-op
             }
         } else {
+            var disposed = false
+            var analysisUseCase: ImageAnalysis? = null
             val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
             val listener = Runnable {
+                if (disposed) return@Runnable
                 val provider = cameraProviderFuture.get()
-                cameraProvider = provider
+                if (disposed) return@Runnable
 
                 val preview = Preview.Builder().build().also {
                     it.surfaceProvider = previewView.surfaceProvider
@@ -284,8 +307,15 @@ private fun PtpCameraAndDispensingList(
                     .also {
                         it.setAnalyzer(executor, analyzer)
                     }
+                analysisUseCase = analysis
 
                 try {
+                    if (disposed ||
+                        !lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+                    ) {
+                        analysis.clearAnalyzer()
+                        return@Runnable
+                    }
                     provider.unbindAll()
                     activeCamera = provider.bindToLifecycle(
                         lifecycleOwner,
@@ -293,6 +323,7 @@ private fun PtpCameraAndDispensingList(
                         preview,
                         analysis
                     )
+                    cameraProvider = provider
                     activeCamera?.cameraControl?.setZoomRatio(PTP_ZOOM_RATIO)
                 } catch (e: Throwable) {
                     Log.w(TAG, "Camera binding failure for dispensing ptp scan", e)
@@ -301,6 +332,8 @@ private fun PtpCameraAndDispensingList(
             cameraProviderFuture.addListener(listener, executor)
 
             onDispose {
+                disposed = true
+                analysisUseCase?.clearAnalyzer()
                 runCatching { cameraProvider?.unbindAll() }
                 cameraProvider = null
                 activeCamera = null
@@ -349,7 +382,7 @@ private fun DispensingPtpRow(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(badgeColor),
+                    .background(badgeColor, RoundedCornerShape(8.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(

@@ -48,15 +48,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
 import com.example.yakuzaiapp.R
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import com.example.yakuzaiapp.domain.jahis.AssembleResult
 import com.example.yakuzaiapp.domain.jahis.DetectedQr
 import com.example.yakuzaiapp.domain.scan.ScanMode
+import com.example.yakuzaiapp.ui.home.HomeBottomTab
+import com.example.yakuzaiapp.ui.home.HomeBottomTabBar
 import com.example.yakuzaiapp.util.BarcodeAnalyzer
 import kotlinx.coroutines.launch
 
@@ -72,7 +75,13 @@ fun ScanScreen(
     mode: ScanMode = ScanMode.PTP_GTIN,
     continuousMode: Boolean = false,
     onResult: (String) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    bottomTab: HomeBottomTab? = null,
+    onHomeClick: () -> Unit = onBack,
+    onAuditClick: () -> Unit = onBack,
+    onReportClick: () -> Unit = onBack,
+    onFillClick: () -> Unit = onBack,
+    onDataUpdateClick: () -> Unit = onBack
 ) {
     val context = LocalContext.current
     var hasCameraPermission by remember {
@@ -96,6 +105,18 @@ fun ScanScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        bottomBar = {
+            bottomTab?.let {
+                HomeBottomTabBar(
+                    selectedTab = it,
+                    onHomeClick = onHomeClick,
+                    onAuditClick = onAuditClick,
+                    onReportClick = onReportClick,
+                    onFillClick = onFillClick,
+                    onDataUpdateClick = onDataUpdateClick
+                )
+            }
+        },
         topBar = {
             TopAppBar(
                 title = {
@@ -368,7 +389,7 @@ private fun CameraScanContent(
                             }
                         },
                         enabled = jahisFragments.isNotEmpty(),
-                        shape = RectangleShape,
+                        shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary
@@ -389,7 +410,7 @@ private fun CameraScanContent(
                             jahisDelivered = false
                             onBack()
                         },
-                        shape = RectangleShape,
+                        shape = RoundedCornerShape(14.dp),
                         modifier = Modifier
                             .weight(1f)
                             .height(58.dp)
@@ -412,9 +433,17 @@ private fun CameraScanContent(
     }
 
     DisposableEffect(mode, continuousMode, lifecycleOwner, analyzer) {
+        var disposed = false
+        var analysisUseCase: ImageAnalysis? = null
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         val listener = Runnable {
+            if (disposed) {
+                return@Runnable
+            }
             val provider = cameraProviderFuture.get()
+            if (disposed) {
+                return@Runnable
+            }
             cameraProvider = provider
 
             val preview = Preview.Builder().build().also {
@@ -433,8 +462,15 @@ private fun CameraScanContent(
             val analysis = analysisBuilder.build().also {
                 it.setAnalyzer(executor, analyzer)
             }
+            analysisUseCase = analysis
 
             try {
+                if (disposed ||
+                    !lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+                ) {
+                    analysis.clearAnalyzer()
+                    return@Runnable
+                }
                 provider.unbindAll()
                 activeCamera = provider.bindToLifecycle(
                     lifecycleOwner,
@@ -449,6 +485,8 @@ private fun CameraScanContent(
         cameraProviderFuture.addListener(listener, executor)
 
         onDispose {
+            disposed = true
+            analysisUseCase?.clearAnalyzer()
             try {
                 cameraProvider?.unbindAll()
             } catch (_: Throwable) {

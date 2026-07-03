@@ -4,6 +4,7 @@ import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -48,6 +49,8 @@ import com.example.yakuzaiapp.domain.dispensing.DispensingSession
 import com.example.yakuzaiapp.domain.dispensing.ExpectedDrugItem
 import com.example.yakuzaiapp.domain.dispensing.ItemStatus
 import com.example.yakuzaiapp.domain.dispensing.ScanMatchResult
+import com.example.yakuzaiapp.ui.home.HomeBottomTab
+import com.example.yakuzaiapp.ui.home.HomeBottomTabBar
 import com.example.yakuzaiapp.util.SoundFeedback
 import com.example.yakuzaiapp.util.VibrationFeedback
 import java.util.Calendar
@@ -59,7 +62,12 @@ fun DispensingScreen(
     onStartScan: () -> Unit,
     onReloadQr: () -> Unit,
     onStartPtpScan: () -> Unit,
-    onCompleted: () -> Unit
+    onCompleted: () -> Unit,
+    onHomeClick: () -> Unit,
+    onAuditClick: () -> Unit,
+    onReportClick: () -> Unit,
+    onFillClick: () -> Unit,
+    onDataUpdateClick: () -> Unit
 ) {
     val session by viewModel.session.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -85,7 +93,17 @@ fun DispensingScreen(
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        bottomBar = {
+            HomeBottomTabBar(
+                selectedTab = HomeBottomTab.REPORT,
+                onHomeClick = onHomeClick,
+                onAuditClick = onAuditClick,
+                onReportClick = onReportClick,
+                onFillClick = onFillClick,
+                onDataUpdateClick = onDataUpdateClick
+            )
+        }
     ) { padding ->
         when (uiState) {
             DispensingUiState.Empty -> EmptyContent(padding = padding, onStartScan = onStartScan)
@@ -322,20 +340,24 @@ private fun ReadyContent(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 32.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Button(
                 onClick = onReloadQr,
-                modifier = Modifier.weight(1f),
-                shape = RectangleShape
+                modifier = Modifier
+                    .weight(1f)
+                    .height(60.dp),
+                shape = RoundedCornerShape(12.dp)
             ) {
                 Text("QR再読込", fontSize = 18.sp)
             }
             Button(
                 onClick = onStartPtpScan,
-                modifier = Modifier.weight(1f),
-                shape = RectangleShape
+                modifier = Modifier
+                    .weight(1f)
+                    .height(60.dp),
+                shape = RoundedCornerShape(12.dp)
             ) {
                 Text("PTP確認", fontSize = 18.sp)
             }
@@ -394,14 +416,14 @@ private fun CompleteContent(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Button(
                 onClick = onDone,
                 modifier = Modifier
                     .weight(2f)
-                    .height(58.dp),
+                    .height(54.dp),
                 shape = RectangleShape,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFFD32F2F),
@@ -414,7 +436,7 @@ private fun CompleteContent(
                 onClick = onBack,
                 modifier = Modifier
                     .weight(1f)
-                    .height(58.dp),
+                    .height(54.dp),
                 shape = RectangleShape,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF1565C0),
@@ -517,7 +539,7 @@ private fun DrugRow(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(badgeColor),
+                    .background(badgeColor, RoundedCornerShape(8.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(

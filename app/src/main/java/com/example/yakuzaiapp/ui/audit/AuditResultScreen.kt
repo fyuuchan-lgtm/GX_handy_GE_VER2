@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
@@ -32,7 +33,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -43,6 +43,8 @@ import com.example.yakuzaiapp.R
 import com.example.yakuzaiapp.domain.audit.DrugIdentity
 import com.example.yakuzaiapp.domain.audit.MatchResult
 import com.example.yakuzaiapp.domain.audit.MatchStatus
+import com.example.yakuzaiapp.ui.home.HomeBottomTab
+import com.example.yakuzaiapp.ui.home.HomeBottomTabBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,6 +52,11 @@ fun AuditResultScreen(
     onBack: () -> Unit,
     onRetake: () -> Unit,
     onProceedPtp: () -> Unit,
+    onHomeClick: () -> Unit,
+    onAuditClick: () -> Unit,
+    onReportClick: () -> Unit,
+    onFillClick: () -> Unit,
+    onDataUpdateClick: () -> Unit,
     viewModel: AuditScanViewModel = viewModel(factory = AuditScanViewModel.Factory)
 ) {
     val matchResults by viewModel.matchResults.collectAsStateWithLifecycle()
@@ -76,19 +83,30 @@ fun AuditResultScreen(
             )
         },
         bottomBar = {
-            Button(
-                onClick = onProceedPtp,
-                enabled = matchResults.isNotEmpty() && needReviewCount == 0,
-                shape = RectangleShape,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.audit_proceed_ptp),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
+            Column {
+                Button(
+                    onClick = onProceedPtp,
+                    enabled = matchResults.isNotEmpty() && needReviewCount == 0,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 16.dp)
+                        .height(58.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.audit_proceed_ptp),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                }
+                HomeBottomTabBar(
+                    selectedTab = HomeBottomTab.AUDIT,
+                    onHomeClick = onHomeClick,
+                    onAuditClick = onAuditClick,
+                    onReportClick = onReportClick,
+                    onFillClick = onFillClick,
+                    onDataUpdateClick = onDataUpdateClick
                 )
             }
         }

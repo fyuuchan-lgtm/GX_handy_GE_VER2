@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
@@ -55,11 +56,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.yakuzaiapp.R
 import com.example.yakuzaiapp.domain.dispensing.ScanMatchResult
 import com.example.yakuzaiapp.domain.scan.ScanMode
+import com.example.yakuzaiapp.ui.home.HomeBottomTab
+import com.example.yakuzaiapp.ui.home.HomeBottomTabBar
 import com.example.yakuzaiapp.util.BarcodeAnalyzer
 import com.example.yakuzaiapp.util.SoundFeedback
 import com.example.yakuzaiapp.util.VibrationFeedback
@@ -72,6 +76,11 @@ fun AuditPtpScanScreen(
     onBack: () -> Unit,
     onComplete: () -> Unit,
     onCancel: () -> Unit,
+    onHomeClick: () -> Unit,
+    onAuditClick: () -> Unit,
+    onReportClick: () -> Unit,
+    onFillClick: () -> Unit,
+    onDataUpdateClick: () -> Unit,
     auditViewModel: AuditScanViewModel,
     viewModel: AuditPtpScanViewModel = viewModel(factory = AuditPtpScanViewModel.Factory)
     ) {
@@ -119,7 +128,18 @@ fun AuditPtpScanScreen(
         }
     }
 
-    Scaffold { padding ->
+    Scaffold(
+        bottomBar = {
+            HomeBottomTabBar(
+                selectedTab = HomeBottomTab.AUDIT,
+                onHomeClick = onHomeClick,
+                onAuditClick = onAuditClick,
+                onReportClick = onReportClick,
+                onFillClick = onFillClick,
+                onDataUpdateClick = onDataUpdateClick
+            )
+        }
+    ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -210,7 +230,7 @@ private fun PtpCameraAndList(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(0.45f)
+                .weight(0.315f)
         ) {
             if (isComplete) {
                 Text(
@@ -272,7 +292,7 @@ private fun PtpCameraAndList(
             Button(
                 onClick = onComplete,
                 enabled = isComplete,
-                shape = RectangleShape,
+                shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.weight(2f)
             ) {
                 Text(
@@ -284,7 +304,7 @@ private fun PtpCameraAndList(
             }
             Button(
                 onClick = onCancel,
-                shape = RectangleShape,
+                shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
@@ -315,10 +335,13 @@ private fun PtpCameraAndList(
                 // no-op
             }
         } else {
+            var disposed = false
+            var analysisUseCase: ImageAnalysis? = null
             val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
             val listener = Runnable {
+                if (disposed) return@Runnable
                 val provider = cameraProviderFuture.get()
-                cameraProvider = provider
+                if (disposed) return@Runnable
 
                 val preview = Preview.Builder().build().also {
                     it.surfaceProvider = previewView.surfaceProvider
@@ -330,8 +353,15 @@ private fun PtpCameraAndList(
                     .also {
                         it.setAnalyzer(executor, analyzer)
                     }
+                analysisUseCase = analysis
 
                 try {
+                    if (disposed ||
+                        !lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+                    ) {
+                        analysis.clearAnalyzer()
+                        return@Runnable
+                    }
                     provider.unbindAll()
                     provider.bindToLifecycle(
                         lifecycleOwner,
@@ -339,6 +369,7 @@ private fun PtpCameraAndList(
                         preview,
                         analysis
                     )
+                    cameraProvider = provider
                 } catch (e: Throwable) {
                     Log.w(TAG, "Camera binding failure for audit ptp scan", e)
                 }
@@ -346,6 +377,8 @@ private fun PtpCameraAndList(
             cameraProviderFuture.addListener(listener, executor)
 
             onDispose {
+                disposed = true
+                analysisUseCase?.clearAnalyzer()
                 try {
                     cameraProvider?.unbindAll()
                 } catch (_: Throwable) {
@@ -387,7 +420,7 @@ private fun PtpScanRowCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(badgeColor),
+                    .background(badgeColor, RoundedCornerShape(8.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(

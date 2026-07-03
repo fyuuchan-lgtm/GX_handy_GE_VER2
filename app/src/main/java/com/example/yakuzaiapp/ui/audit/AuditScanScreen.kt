@@ -13,6 +13,7 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,7 +42,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
@@ -50,9 +50,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.yakuzaiapp.R
+import com.example.yakuzaiapp.ui.home.HomeBottomTab
+import com.example.yakuzaiapp.ui.home.HomeBottomTabBar
 import com.google.mlkit.vision.common.InputImage
 import kotlinx.coroutines.launch
 import java.util.concurrent.Executor
@@ -64,6 +67,11 @@ private const val TAG = "AuditScanScreen"
 fun AuditScanScreen(
     onBack: () -> Unit,
     onOcrCompleted: () -> Unit,
+    onHomeClick: () -> Unit = onBack,
+    onAuditClick: () -> Unit = {},
+    onReportClick: () -> Unit = onBack,
+    onFillClick: () -> Unit = onBack,
+    onDataUpdateClick: () -> Unit = onBack,
     viewModel: AuditScanViewModel = viewModel(factory = AuditScanViewModel.Factory)
 ) {
     val context = LocalContext.current
@@ -104,6 +112,16 @@ fun AuditScanScreen(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.audit_scan_title)) }
+            )
+        },
+        bottomBar = {
+            HomeBottomTabBar(
+                selectedTab = HomeBottomTab.AUDIT,
+                onHomeClick = onHomeClick,
+                onAuditClick = onAuditClick,
+                onReportClick = onReportClick,
+                onFillClick = onFillClick,
+                onDataUpdateClick = onDataUpdateClick
             )
         }
     ) { padding ->
@@ -195,7 +213,7 @@ private fun AuditCameraContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(Color.White)
-                        .padding(16.dp),
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Button(
@@ -207,10 +225,10 @@ private fun AuditCameraContent(
                             )
                         },
                         enabled = imageCapture != null,
-                        shape = RectangleShape,
+                        shape = RoundedCornerShape(14.dp),
                         modifier = Modifier
                             .weight(2f)
-                            .height(58.dp)
+                            .height(54.dp)
                     ) {
                         Text(
                             stringResource(R.string.audit_capture_button),
@@ -220,10 +238,10 @@ private fun AuditCameraContent(
                     }
                     Button(
                         onClick = onBack,
-                        shape = RectangleShape,
+                        shape = RoundedCornerShape(14.dp),
                         modifier = Modifier
                             .weight(1f)
-                            .height(58.dp)
+                            .height(54.dp)
                     ) {
                         Text(
                             stringResource(R.string.scan_back),
@@ -255,9 +273,16 @@ private fun AuditCameraContent(
                 // no-op
             }
         } else {
+            var disposed = false
             val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
             val listener = Runnable {
+                if (disposed) {
+                    return@Runnable
+                }
                 val provider = cameraProviderFuture.get()
+                if (disposed) {
+                    return@Runnable
+                }
                 cameraProvider = provider
 
                 val preview = Preview.Builder().build().also {
@@ -269,6 +294,12 @@ private fun AuditCameraContent(
                 imageCapture = capture
 
                 try {
+                    if (disposed ||
+                        !lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+                    ) {
+                        imageCapture = null
+                        return@Runnable
+                    }
                     provider.unbindAll()
                     provider.bindToLifecycle(
                         lifecycleOwner,
@@ -283,6 +314,7 @@ private fun AuditCameraContent(
             cameraProviderFuture.addListener(listener, executor)
 
             onDispose {
+                disposed = true
                 try {
                     cameraProvider?.unbindAll()
                 } catch (_: Throwable) {
