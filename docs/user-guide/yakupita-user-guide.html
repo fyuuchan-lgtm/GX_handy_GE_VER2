@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ヤクピタ 一般向け説明書</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #617086;
+      --blue: #0d3978;
+      --teal: #147089;
+      --line: #d9e2ec;
+      --soft: #f4f8fb;
+      --notice: #fff7d7;
+      --white: #ffffff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: "Noto Sans JP", "Yu Gothic", "Meiryo", system-ui, sans-serif;
+      background: #ffffff;
+      line-height: 1.75;
+    }
+
+    header {
+      background: var(--blue);
+      color: var(--white);
+      padding: 40px 0 34px;
+    }
+
+    main,
+    .header-inner {
+      width: min(1040px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(32px, 6vw, 56px);
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 700;
+      opacity: 0.92;
+    }
+
+    .meta {
+      margin-top: 18px;
+      font-size: 13px;
+      opacity: 0.82;
+    }
+
+    section {
+      padding: 40px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h2 {
+      margin: 0 0 16px;
+      font-size: clamp(26px, 4vw, 36px);
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin: 22px 0 8px;
+      font-size: 21px;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 0 0 14px;
+    }
+
+    ul,
+    ol {
+      margin-top: 8px;
+      padding-left: 1.35em;
+    }
+
+    li {
+      margin: 7px 0;
+    }
+
+    .lead {
+      color: var(--muted);
+      font-size: 17px;
+      font-weight: 650;
+    }
+
+    .two-column {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+      gap: 28px;
+      align-items: start;
+    }
+
+    .screen {
+      margin: 0;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--soft);
+    }
+
+    .screen img {
+      width: 100%;
+      display: block;
+      border-radius: 6px;
+      border: 1px solid rgba(23, 32, 51, 0.08);
+    }
+
+    .screen figcaption {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .mode-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .mode-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 18px;
+      background: var(--white);
+    }
+
+    .mode-card strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--blue);
+      font-size: 19px;
+    }
+
+    .notice {
+      margin: 18px 0;
+      padding: 14px 16px;
+      border-left: 5px solid #f2c94c;
+      background: var(--notice);
+      border-radius: 6px;
+      font-weight: 700;
+    }
+
+    .check-list {
+      display: grid;
+      gap: 10px;
+      padding-left: 0;
+      list-style: none;
+    }
+
+    .check-list li {
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--soft);
+    }
+
+    .label {
+      display: inline-block;
+      min-width: 7em;
+      color: var(--teal);
+      font-weight: 900;
+    }
+
+    footer {
+      padding: 30px 0 44px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 820px) {
+      .two-column,
+      .mode-grid {
+        grid-template-columns: 1fr;
+      }
+
+      header {
+        padding-top: 30px;
+      }
+    }
+
+    @media print {
+      header {
+        background: #ffffff;
+        color: var(--ink);
+        border-bottom: 2px solid var(--line);
+      }
+
+      section {
+        break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <h1>ヤクピタ 一般向け説明書</h1>
+      <p class="subtitle">薬局の調剤確認・帳票監査・充填確認をスマホカメラで支えるアプリです。</p>
+      <p class="meta">作成日: 2026年7月6日 / 画面は開発中の実機画面を含みます。</p>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <h2>1. ヤクピタでできること</h2>
+      <p class="lead">ヤクピタは、薬局内で発生する「読み取り」「照合」「確認」を、スマホカメラで補助するためのアプリです。</p>
+      <div class="mode-grid">
+        <div class="mode-card">
+          <strong>調剤モード</strong>
+          <p>薬情のQRコードを読み込み、ピッキング時の確認に使います。</p>
+        </div>
+        <div class="mode-card">
+          <strong>帳票監査モード</strong>
+          <p>帳票を撮影し、薬品リストを作ってからPTPや箱のコードと照合します。</p>
+        </div>
+        <div class="mode-card">
+          <strong>充填モード</strong>
+          <p>錠剤分包機や散薬瓶への充填時に、薬品と充填先を照合します。</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="two-column">
+        <div>
+          <h2>2. ホーム画面</h2>
+          <p>アプリを開くと、ホーム画面に主要な3つのモードが表示されます。使いたい作業のカードをタップします。</p>
+          <ul class="check-list">
+            <li><span class="label">調剤モード</span>薬情QRコードから調剤確認を始めます。</li>
+            <li><span class="label">帳票監査モード</span>帳票を撮影して監査を始めます。</li>
+            <li><span class="label">充填モード</span>薬品と充填先の照合を始めます。</li>
+            <li><span class="label">下部タブ</span>ホーム、調剤、帳票、充填、利用者選択へ移動できます。</li>
+          </ul>
+          <div class="notice">最初にカメラ権限を求められた場合は、読み取りに必要なので許可してください。</div>
+        </div>
+        <figure class="screen">
+          <img src="assets/screen-home.png" alt="ヤクピタのホーム画面">
+          <figcaption>ホーム画面</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section>
+      <h2>3. 利用者選択</h2>
+      <p>充填モードなど、作業者を記録する画面では利用者選択が必要です。下部タブの「利用者選択」から、作業する人を選びます。</p>
+      <ol>
+        <li>下部タブの「利用者選択」をタップします。</li>
+        <li>利用者一覧から自分の名前を選びます。</li>
+        <li>ホームまたは使いたいモードへ戻ります。</li>
+      </ol>
+      <div class="notice">「利用者登録が必要です」と表示された場合は、利用者が未選択、または利用者マスタに登録がない状態です。</div>
+    </section>
+
+    <section>
+      <h2>4. 調剤モードの使い方</h2>
+      <p>調剤モードは、薬情などのQRコードを読み取り、ピッキング時の確認に使います。</p>
+      <ol>
+        <li>ホーム画面で「調剤モード」をタップします。</li>
+        <li>薬情のQRコードをスマホカメラに入れます。</li>
+        <li>読み取り後、表示された薬品リストを確認します。</li>
+        <li>PTPや箱のGS1コードを読み取り、リストと一致するか確認します。</li>
+        <li>全て確認できたら作業完了です。</li>
+      </ol>
+      <p>QRコードが分割されている場合は、画面の案内に従って続けて読み取ります。</p>
+    </section>
+
+    <section>
+      <h2>5. 帳票監査モードの使い方</h2>
+      <p>帳票監査モードは、取り揃え表などを撮影し、OCRで薬品名を読み取って監査リストを作ります。</p>
+      <ol>
+        <li>ホーム画面で「帳票監査モード」をタップします。</li>
+        <li>帳票全体が画面に入るように置きます。</li>
+        <li>「撮影」をタップします。</li>
+        <li>OCR処理が終わるまで待ちます。</li>
+        <li>検出された薬品リストを確認します。</li>
+        <li>候補が複数ある場合は、正しい薬品を選択します。</li>
+        <li>「PTPスキャン」へ進み、PTPや箱のコードを読み取って照合します。</li>
+      </ol>
+      <div class="notice">帳票監査は文字読み取りを行うため、他のバーコード読み取りモードより起動や処理に時間がかかることがあります。</div>
+    </section>
+
+    <section>
+      <div class="two-column">
+        <div>
+          <h2>6. 充填モードの使い方</h2>
+          <p>充填モードは、薬品と充填先のカセット・瓶が合っているかを確認するための2段階読み取りです。</p>
+          <ol>
+            <li>下部タブまたはホーム画面から「充填モード」を開きます。</li>
+            <li>利用者未選択の場合は、先に利用者を選択します。</li>
+            <li>充填する薬品のPTPまたは箱をスマホカメラで読み取ります。</li>
+            <li>画面に薬品名と使用期限が表示されます。</li>
+            <li>次に、充填先のカセットまたは瓶のコードを読み取ります。</li>
+            <li>一致すれば「充填OK」と表示され、音と振動で知らせます。</li>
+          </ol>
+          <div class="notice">同じ箱を映したままにすると誤って2回目扱いになることがあるため、1回目の読み取り後はいったん薬品をカメラから外してください。</div>
+        </div>
+        <figure class="screen">
+          <img src="assets/screen-fill.png" alt="充填モードの画面">
+          <figcaption>充填モード画面</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section>
+      <h2>7. 困ったとき</h2>
+      <ul class="check-list">
+        <li><span class="label">カメラが映らない</span>カメラ権限が許可されているか確認してください。</li>
+        <li><span class="label">読み取れない</span>コード全体を明るい場所で画面中央に入れ、少し離してピントを合わせてください。</li>
+        <li><span class="label">利用者登録が必要</span>下部タブの「利用者選択」から利用者を選んでください。</li>
+        <li><span class="label">帳票が読めない</span>帳票全体が入るように撮影し、影や折れ目を避けてください。</li>
+        <li><span class="label">薬品が出ない</span>薬品マスタやデータ更新が済んでいるか確認してください。</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <main>ヤクピタ 一般向け説明書 / この説明書は実機画面と現行仕様をもとに作成しています。</main>
+  </footer>
+</body>
+</html>
