@@ -300,7 +300,7 @@ private fun FillModeCameraContent(
             context = context,
             mode = ScanMode.PTP_GTIN,
             cooldownMs = 1000L,
-            useMlKitFallback = false,
+            useMlKitFallback = true,
             useTextExpirationFallback = true
         ) { detections ->
             detections.forEach { detection ->

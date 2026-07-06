@@ -13,6 +13,7 @@ The specific behavior recorded here is the camera transition from dispensing/fil
 Audit document mode is different from dispensing mode and fill mode.
 
 - Dispensing and fill modes read GS1, QR, DataBar, and similar codes through `Preview + ImageAnalysis + BarcodeAnalyzer`.
+- Fill mode must keep `useMlKitFallback = true` because some package barcodes are easier to detect through ML Kit than the ZXing path alone. The expiration-date OCR fallback should stay enabled separately with `useTextExpirationFallback = true`.
 - Audit document capture takes a still image of the document and then sends it to Japanese OCR, so it uses `Preview + ImageCapture`.
 
 Because `ImageCapture` creates a heavier camera session, audit document capture can take longer to start if the previous screen is still releasing its CameraX use cases.
