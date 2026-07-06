@@ -296,6 +296,7 @@ private fun FillModeCameraContent(
     val latestOnBarcodeDetected by rememberUpdatedState(onBarcodeDetected)
     var cameraProvider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
     var cameraBindRetry by remember(uiState.isComplete) { mutableStateOf(0) }
+    val cameraEnabled = !uiState.isComplete && !uiState.selectedStaffId.isNullOrBlank()
     val analyzer = remember(context) {
         BarcodeAnalyzer(
             context = context,
@@ -363,10 +364,10 @@ private fun FillModeCameraContent(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(if (uiState.isComplete) 96.dp else 221.dp)
-                .background(if (uiState.isComplete) Color.White else Color(0xFF202020))
+                .height(if (uiState.isComplete || !cameraEnabled) 96.dp else 221.dp)
+                .background(if (uiState.isComplete || !cameraEnabled) Color.White else Color(0xFF202020))
         ) {
-            if (!uiState.isComplete) {
+            if (cameraEnabled) {
                 AndroidView(
                     factory = { previewView },
                     modifier = Modifier.fillMaxSize()
@@ -374,6 +375,18 @@ private fun FillModeCameraContent(
                 if (cameraProvider == null) {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
+            } else if (!uiState.isComplete) {
+                Text(
+                    text = STAFF_REQUIRED_NOTICE,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(horizontal = 20.dp),
+                    color = Color(0xFF6B4E00),
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
 
@@ -451,8 +464,8 @@ private fun FillModeCameraContent(
         )
     }
 
-    DisposableEffect(lifecycleOwner, analyzer, uiState.isComplete, cameraBindRetry) {
-        if (uiState.isComplete) {
+    DisposableEffect(lifecycleOwner, analyzer, cameraEnabled, cameraBindRetry) {
+        if (!cameraEnabled) {
             runCatching { cameraProvider?.unbindAll() }
             cameraProvider = null
             onDispose {}

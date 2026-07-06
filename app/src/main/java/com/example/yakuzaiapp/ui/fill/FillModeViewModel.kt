@@ -46,6 +46,8 @@ class FillModeViewModel(
             }.collect { staff ->
                 if (staff != null && _uiState.value.selectedStaffId != staff.staffId) {
                     applySelectedStaff(staff)
+                } else if (staff == null) {
+                    clearSelectedStaff()
                 }
             }
         }
@@ -77,6 +79,17 @@ class FillModeViewModel(
                 } else {
                     it.statusText
                 }
+            )
+        }
+    }
+
+    private fun clearSelectedStaff() {
+        _uiState.update {
+            it.copy(
+                selectedStaffId = null,
+                selectedStaffName = null,
+                selectedStaffKana = null,
+                statusText = STAFF_REQUIRED_MESSAGE
             )
         }
     }
