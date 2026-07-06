@@ -63,6 +63,7 @@ fun HomeScreen(
     onOpenMedisImport: () -> Unit,
     onOpenFacilityRegistration: () -> Unit,
     onOpenUserRegistration: () -> Unit,
+    onOpenFillHistory: () -> Unit,
     onOpenUserSelection: () -> Unit,
     onOpenFillMode: () -> Unit,
     onOpenDispensing: () -> Unit,
@@ -117,6 +118,13 @@ fun HomeScreen(
                                 onClick = {
                                     menuExpanded = false
                                     onOpenUserRegistration()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("充填ログ確認") },
+                                onClick = {
+                                    menuExpanded = false
+                                    onOpenFillHistory()
                                 },
                             )
                         }
@@ -447,14 +455,14 @@ fun HomeBottomTabBar(
                 label = "調剤モード",
                 selected = selectedTab == HomeBottomTab.REPORT,
                 onClick = onReportClick,
-                icon = { ReportTabIcon(it) },
+                icon = { AuditTabIcon(it) },
                 modifier = Modifier.weight(1f),
             )
             BottomTabButton(
                 label = "帳票モード",
                 selected = selectedTab == HomeBottomTab.AUDIT,
                 onClick = onAuditClick,
-                icon = { AuditTabIcon(it) },
+                icon = { ReportTabIcon(it) },
                 modifier = Modifier.weight(1f),
             )
             BottomTabButton(
@@ -488,7 +496,7 @@ private fun BottomTabButton(
 
     Surface(
         modifier = modifier
-            .height(72.dp)
+            .height(78.dp)
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(10.dp),
         color = containerColor,
@@ -496,12 +504,12 @@ private fun BottomTabButton(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = 8.dp, bottom = 4.dp),
+                .padding(top = 7.dp, bottom = 4.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
             icon(contentColor)
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(5.dp))
             Text(
                 text = label,
                 color = contentColor,
@@ -626,7 +634,7 @@ private fun UserSelectTabIcon(color: Color) {
 
 @Composable
 private fun TabIconCanvas(
-    iconSize: Dp = 28.dp,
+    iconSize: Dp = 34.dp,
     drawIcon: androidx.compose.ui.graphics.drawscope.DrawScope.(point: (Float, Float) -> Offset, stroke: Stroke) -> Unit,
 ) {
     Canvas(modifier = Modifier.size(iconSize)) {

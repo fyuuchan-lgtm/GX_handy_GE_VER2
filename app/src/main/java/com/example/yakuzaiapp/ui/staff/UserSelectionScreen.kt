@@ -37,6 +37,8 @@ import com.example.yakuzaiapp.YakuzaiApplication
 import com.example.yakuzaiapp.data.local.dao.StaffMasterDao
 import com.example.yakuzaiapp.data.local.entity.StaffMaster
 import com.example.yakuzaiapp.data.repository.StaffSelectionRepository
+import com.example.yakuzaiapp.ui.home.HomeBottomTab
+import com.example.yakuzaiapp.ui.home.HomeBottomTabBar
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -46,6 +48,11 @@ import kotlinx.coroutines.flow.stateIn
 fun UserSelectionScreen(
     onBack: () -> Unit,
     onSelected: () -> Unit,
+    onHomeClick: () -> Unit,
+    onAuditClick: () -> Unit,
+    onReportClick: () -> Unit,
+    onFillClick: () -> Unit,
+    onDataUpdateClick: () -> Unit,
     viewModel: UserSelectionViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
         factory = UserSelectionViewModel.Factory
     )
@@ -65,6 +72,16 @@ fun UserSelectionScreen(
                         )
                     }
                 }
+            )
+        },
+        bottomBar = {
+            HomeBottomTabBar(
+                selectedTab = HomeBottomTab.USER_SELECT,
+                onHomeClick = onHomeClick,
+                onAuditClick = onAuditClick,
+                onReportClick = onReportClick,
+                onFillClick = onFillClick,
+                onDataUpdateClick = onDataUpdateClick,
             )
         }
     ) { padding ->

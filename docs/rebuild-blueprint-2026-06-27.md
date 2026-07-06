@@ -87,6 +87,43 @@ git remote add origin https://github.com/fyuuchan-lgtm/GX_handy_GE_VER2.git
 git push -u origin master
 ```
 
+### 2026-07-06 追記: バックアップ対象と復旧時の正本
+
+アプリ本体が壊れた場合、または別 PC で再構築する場合は、以下を正本として扱う。
+
+必ず残すもの:
+
+- プログラム本体: `app/src/main/java/com/example/yakuzaiapp/`
+- Android 設定: `app/build.gradle.kts`, `build.gradle.kts`, `settings.gradle.kts`, `gradle.properties`
+- 通常仕様書: `docs/spec_v0.3.md`
+- 追加仕様書: `docs/spec-camera-navigation-2026-07-06.md`
+- 復旧・再構築用仕様書: `docs/rebuild-blueprint-2026-06-27.md`
+- 重要仕様差分: `docs/spec-vs-impl-diff-2026-06-09.md`
+- JAHIS 参照資料: `docs/jahis-spec/`
+- Gradle wrapper: `gradlew.bat`, `gradle/wrapper/`
+
+バックアップ先は GitHub リポジトリを優先する。
+
+```text
+https://github.com/fyuuchan-lgtm/GX_handy_GE_VER2.git
+```
+
+作業マイルストーンごとに、少なくとも以下を行う。
+
+```powershell
+git status --short
+git add app docs build.gradle.kts settings.gradle.kts gradle.properties gradlew.bat gradle/wrapper
+git commit -m "<作業内容が分かるメッセージ>"
+git push
+```
+
+注意:
+
+- `app/build/`, `.gradle/`, `.idea/`, APK 生成物は復旧用の正本にしない。
+- APK は動作確認には使えるが、再構築の正本はソースコードと仕様書である。
+- 実機データのバックアップと GitHub のソースバックアップは別物である。
+- MEDIS 自動更新は薬品マスタ更新の仕組みであり、ソースコードや仕様書のバックアップではない。
+
 ユニットテストは Java/Gradle のテストワーカーが日本語を含む作業パスを正しく扱えず、`ClassNotFoundException` になることがある。
 また、クリーンビルド時に KSP が生成した Room の Java コードから Kotlin 側の DAO/entity を見失うことがある。
 `app/build.gradle.kts` では、debug Kotlin クラスを ASCII の一時ディレクトリへ同期して `compileDebugJavaWithJavac` のクラスパスへ追加する。
@@ -847,6 +884,60 @@ Navigation:
 ```text
 app/src/main/java/com/example/yakuzaiapp/ui/navigation/AppNavigation.kt
 ```
+
+### 11.0.1 2026-07-06 追記: タブバーから帳票監査へ入る時の内部ホーム経由
+
+詳細仕様:
+
+```text
+docs/spec-camera-navigation-2026-07-06.md
+```
+
+背景:
+
+- 帳票監査撮影画面は `Preview + ImageCapture` を使う。
+- 調剤モード、充填モード、共通スキャナ画面はカメラを継続使用する。
+- カメラ使用中画面からタブバーで帳票監査へ直接遷移すると、前画面の CameraX use case 解放と帳票監査側の `ImageCapture` 起動が重なり、起動が遅くなる。
+- ユーザーがいったんホームへ戻ってから帳票監査へ入ると、ホーム表示中にカメラ解放が進むためスムースに起動する。
+
+復旧時に守る仕様:
+
+- ユーザーに明示的なホーム経由を求めない。
+- タブバーで帳票監査を押した場合、アプリ内部で `Routes.HOME` へ移動し、短時間待ってから `Routes.AUDIT_SCAN` へ移動する。
+- ホームから帳票監査へ入る経路は、従来通り直接 `Routes.AUDIT_SCAN` へ移動する。
+
+実装:
+
+```text
+app/src/main/java/com/example/yakuzaiapp/ui/navigation/AppNavigation.kt
+```
+
+主要要素:
+
+```text
+CAMERA_RELEASE_NAVIGATION_DELAY_MS = 250L
+navigateToAuditAfterCameraRelease()
+```
+
+この処理を使う主な経路:
+
+- `FillModeScreen.onAuditClick`
+- `DispensingScreen.onAuditClick`
+- `DispensingPtpScanScreen.onAuditClick`
+- `ScanScreen.onAuditClick`
+
+検証:
+
+```powershell
+.\gradlew.bat :app:compileDebugKotlin --no-daemon
+```
+
+実機では以下を確認する。
+
+- ホーム -> 帳票監査: 従来通りスムースに起動する。
+- 充填 -> タブバー帳票監査: フリーズせず起動する。
+- 調剤 -> タブバー帳票監査: フリーズせず起動する。
+- 調剤 PTP / 共通スキャナ -> タブバー帳票監査: 前画面のカメラが残らない。
 
 ## 11.1 充填モード
 

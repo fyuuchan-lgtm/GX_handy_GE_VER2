@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -67,8 +68,10 @@ import com.example.yakuzaiapp.ui.home.HomeBottomTabBar
 import com.example.yakuzaiapp.util.BarcodeAnalyzer
 import com.example.yakuzaiapp.util.SoundFeedback
 import com.example.yakuzaiapp.util.VibrationFeedback
+import java.util.concurrent.Executors
 
 private const val TAG = "AuditPtpScanScreen"
+private val PrimaryButtonBlue = Color(0xFF002466)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -157,7 +160,10 @@ fun AuditPtpScanScreen(
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
-                TextButton(onClick = onBack) {
+                TextButton(
+                    onClick = onBack,
+                    colors = ButtonDefaults.textButtonColors(contentColor = PrimaryButtonBlue)
+                ) {
                     Text(stringResource(R.string.scan_back))
                 }
             }
@@ -204,7 +210,8 @@ private fun PtpCameraAndList(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val executor = remember(context) { ContextCompat.getMainExecutor(context) }
+    val mainExecutor = remember(context) { ContextCompat.getMainExecutor(context) }
+    val analysisExecutor = remember { Executors.newSingleThreadExecutor() }
     val previewView = remember(context) {
         PreviewView(context).apply {
             implementationMode = PreviewView.ImplementationMode.COMPATIBLE
@@ -293,6 +300,10 @@ private fun PtpCameraAndList(
                 onClick = onComplete,
                 enabled = isComplete,
                 shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = PrimaryButtonBlue,
+                    contentColor = Color.White
+                ),
                 modifier = Modifier.weight(2f)
             ) {
                 Text(
@@ -305,6 +316,10 @@ private fun PtpCameraAndList(
             Button(
                 onClick = onCancel,
                 shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = PrimaryButtonBlue,
+                    contentColor = Color.White
+                ),
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
@@ -314,6 +329,12 @@ private fun PtpCameraAndList(
                     textAlign = TextAlign.Center
                 )
             }
+        }
+    }
+
+    DisposableEffect(analysisExecutor) {
+        onDispose {
+            analysisExecutor.shutdown()
         }
     }
 
@@ -351,7 +372,7 @@ private fun PtpCameraAndList(
                     .setTargetResolution(Size(1280, 720))
                     .build()
                     .also {
-                        it.setAnalyzer(executor, analyzer)
+                        it.setAnalyzer(analysisExecutor, analyzer)
                     }
                 analysisUseCase = analysis
 
@@ -374,7 +395,7 @@ private fun PtpCameraAndList(
                     Log.w(TAG, "Camera binding failure for audit ptp scan", e)
                 }
             }
-            cameraProviderFuture.addListener(listener, executor)
+            cameraProviderFuture.addListener(listener, mainExecutor)
 
             onDispose {
                 disposed = true

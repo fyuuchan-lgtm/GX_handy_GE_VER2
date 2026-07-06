@@ -160,7 +160,7 @@ class FillModeViewModelTest {
     }
 
     @Test
-    fun expirationWarningCanBeDismissed() = runTest(dispatcher) {
+    fun expirationWarningDismissResetsToDrugSelection() = runTest(dispatcher) {
         val drug = drugMaster(
             gtin = "04987376861687",
             yjCode = "2354003F2014",
@@ -175,64 +175,12 @@ class FillModeViewModelTest {
         advanceUntilIdle()
         viewModel.dismissExpirationWarning()
 
-        assertEquals(null, viewModel.uiState.value.expirationWarningMessage)
-    }
-
-    @Test
-    fun dismissedExpirationWarningDoesNotReappearForSameSourceExpiration() = runTest(dispatcher) {
-        var now = localDateMillis(2026, 7, 3)
-        val drug = drugMaster(
-            gtin = "14987376861653",
-            yjCode = "2354003F2014",
-            drugName = "繧ｻ繝ｳ繝弱す繝蛾権12mg"
-        )
-        val viewModel = fillModeViewModel(
-            drugMasterLookup = fakeLookup("14987376861653" to drug),
-            nowMs = { now }
-        )
-
-        viewModel.processBarcode("(01)14987376861653(17)260702")
-        advanceUntilIdle()
-        assertEquals("期限が切れています", viewModel.uiState.value.expirationWarningMessage)
-
-        viewModel.dismissExpirationWarning()
-        now += 200L
-        viewModel.processBarcode("(01)14987376861653(17)260702")
-        advanceUntilIdle()
-
-        assertEquals(null, viewModel.uiState.value.expirationWarningMessage)
-        assertEquals("2026-07-02", viewModel.uiState.value.dismissedExpirationWarningDate)
-    }
-
-    @Test
-    fun dismissedExpirationWarningUsesCurrentlyWarnedExpirationDate() = runTest(dispatcher) {
-        var now = localDateMillis(2026, 7, 5)
-        val drug = drugMaster(
-            gtin = "14987376861653",
-            yjCode = "2354003F2014",
-            drugName = "繧ｻ繝ｳ繝弱す繝蛾権12mg"
-        )
-        val viewModel = fillModeViewModel(
-            drugMasterLookup = fakeLookup("14987376861653" to drug),
-            nowMs = { now }
-        )
-
-        viewModel.processBarcode("(01)14987376861653(17)260702")
-        advanceUntilIdle()
-        viewModel.dismissExpirationWarning()
-
-        now += 200L
-        viewModel.processBarcode("(01)14987376861653(17)260703")
-        advanceUntilIdle()
-        assertEquals("期限が切れています", viewModel.uiState.value.expirationWarningMessage)
-
-        viewModel.dismissExpirationWarning()
-        now += 200L
-        viewModel.processBarcode("(01)14987376861653(17)260703")
-        advanceUntilIdle()
-
-        assertEquals(null, viewModel.uiState.value.expirationWarningMessage)
-        assertEquals("2026-07-03", viewModel.uiState.value.dismissedExpirationWarningDate)
+        val state = viewModel.uiState.value
+        assertEquals(FillModeStage.SELECT_DRUG, state.phase)
+        assertEquals(null, state.expirationWarningMessage)
+        assertEquals(null, state.selectedDrugName)
+        assertEquals(null, state.selectedSourceExpirationDate)
+        assertFalse(state.isComplete)
     }
 
     @Test

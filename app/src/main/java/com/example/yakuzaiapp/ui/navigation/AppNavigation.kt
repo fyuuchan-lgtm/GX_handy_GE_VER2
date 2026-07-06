@@ -25,6 +25,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -55,6 +56,8 @@ import com.example.yakuzaiapp.ui.dispensing.DispensingCompleteScreen
 import com.example.yakuzaiapp.ui.dispensing.DispensingPtpScanScreen
 import com.example.yakuzaiapp.ui.dispensing.DispensingScreen
 import com.example.yakuzaiapp.ui.dispensing.DispensingViewModel
+import com.example.yakuzaiapp.ui.facility.FacilityRegistrationScreen
+import com.example.yakuzaiapp.ui.fill.FillHistoryScreen
 import com.example.yakuzaiapp.ui.home.HomeBottomTab
 import com.example.yakuzaiapp.ui.home.HomeScreen
 import com.example.yakuzaiapp.ui.fill.FillModeScreen
@@ -67,8 +70,11 @@ import com.example.yakuzaiapp.ui.staff.UserRegistrationScreen
 import com.example.yakuzaiapp.ui.staff.UserSelectionScreen
 import com.example.yakuzaiapp.util.SoundFeedback
 import com.example.yakuzaiapp.util.VibrationFeedback
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private const val TAG = "AppNavigation"
+private const val CAMERA_RELEASE_NAVIGATION_DELAY_MS = 250L
 
 object Routes {
     const val HOME = "home"
@@ -83,6 +89,7 @@ object Routes {
     const val AUDIT_PTP_SCAN = "audit_ptp_scan"
     const val AUDIT_PTP_COMPLETE = "audit_ptp_complete"
     const val FILL_MODE = "fill_mode"
+    const val FILL_LOG = "fill_log"
     const val SCANNER = "scanner/{mode}/{continuous}"
     const val FACILITY_REGISTRATION = "facility_registration"
     const val USER_REGISTRATION = "user_registration"
@@ -107,6 +114,7 @@ fun AppNavigation() {
     val selectedStaffId by application.staffSelectionRepository.selectedStaffId.collectAsState()
     val selectedStaffName = staffList.firstOrNull { it.staffId == selectedStaffId }?.greetingName()
     val lifecycleOwner = LocalLifecycleOwner.current
+    val navigationScope = rememberCoroutineScope()
     val dispensingViewModel: DispensingViewModel = viewModel(factory = DispensingViewModel.Factory)
     val auditScanViewModel: AuditScanViewModel = viewModel(factory = AuditScanViewModel.Factory)
     fun navigateToMedisUpdate() {
@@ -116,9 +124,29 @@ fun AppNavigation() {
             launchSingleTop = true
         }
     }
+    fun updateMedisOnHome() {
+        medisAutoUpdateCoordinator.maybeStartAutoUpdate(force = true)
+        navController.navigate(Routes.HOME) {
+            popUpTo(Routes.HOME) { inclusive = false }
+            launchSingleTop = true
+        }
+    }
     fun navigateToUserSelection() {
         navController.navigate(Routes.USER_SELECTION) {
             launchSingleTop = true
+        }
+    }
+    fun navigateToAuditAfterCameraRelease(beforeNavigate: () -> Unit = {}) {
+        beforeNavigate()
+        navController.navigate(Routes.HOME) {
+            popUpTo(Routes.HOME) { inclusive = false }
+            launchSingleTop = true
+        }
+        navigationScope.launch {
+            delay(CAMERA_RELEASE_NAVIGATION_DELAY_MS)
+            navController.navigate(Routes.AUDIT_SCAN) {
+                launchSingleTop = true
+            }
         }
     }
 
@@ -144,9 +172,10 @@ fun AppNavigation() {
             HomeScreen(
                 selectedStaffName = selectedStaffName,
                 onOpenDrugSearch = { navController.navigate(Routes.DRUG_SEARCH) },
-                onOpenMedisImport = { navController.navigate(Routes.MEDIS_IMPORT) },
+                onOpenMedisImport = { updateMedisOnHome() },
                 onOpenFacilityRegistration = { navController.navigate(Routes.FACILITY_REGISTRATION) },
                 onOpenUserRegistration = { navController.navigate(Routes.USER_REGISTRATION) },
+                onOpenFillHistory = { navController.navigate(Routes.FILL_LOG) },
                 onOpenUserSelection = { navigateToUserSelection() },
                 onOpenFillMode = {
                     Log.d(TAG, "home -> fill_mode")
@@ -194,11 +223,7 @@ fun AppNavigation() {
             )
         }
         composable(Routes.FACILITY_REGISTRATION) {
-            PlaceholderScreen(
-                title = "施設登録",
-                message = "ここに施設登録画面を実装する。",
-                onBack = { navController.popBackStack() },
-            )
+            FacilityRegistrationScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.USER_REGISTRATION) {
             UserRegistrationScreen(onBack = { navController.popBackStack() })
@@ -206,7 +231,33 @@ fun AppNavigation() {
         composable(Routes.USER_SELECTION) {
             UserSelectionScreen(
                 onBack = { navController.popBackStack() },
-                onSelected = { navController.popBackStack() }
+                onSelected = { navController.popBackStack() },
+                onHomeClick = {
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(Routes.HOME) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
+                onAuditClick = {
+                    navController.navigate(Routes.AUDIT_SCAN) {
+                        popUpTo(Routes.HOME) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
+                onReportClick = {
+                    dispensingViewModel.clearSession()
+                    navController.navigate(Routes.scanner(ScanMode.JAHIS_QR)) {
+                        popUpTo(Routes.HOME) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
+                onFillClick = {
+                    navController.navigate(Routes.FILL_MODE) {
+                        popUpTo(Routes.HOME) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
+                onDataUpdateClick = {},
             )
         }
         composable(Routes.AUDIT_SCAN) {
@@ -369,10 +420,7 @@ fun AppNavigation() {
                     }
                 },
                 onAuditClick = {
-                    navController.navigate(Routes.AUDIT_SCAN) {
-                        popUpTo(Routes.HOME) { inclusive = false }
-                        launchSingleTop = true
-                    }
+                    navigateToAuditAfterCameraRelease()
                 },
                 onReportClick = {
                     dispensingViewModel.clearSession()
@@ -386,6 +434,9 @@ fun AppNavigation() {
                     navigateToUserSelection()
                 }
             )
+        }
+        composable(Routes.FILL_LOG) {
+            FillHistoryScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.DISPENSING) {
             DispensingScreen(
@@ -421,10 +472,7 @@ fun AppNavigation() {
                     }
                 },
                 onAuditClick = {
-                    navController.navigate(Routes.AUDIT_SCAN) {
-                        popUpTo(Routes.HOME) { inclusive = false }
-                        launchSingleTop = true
-                    }
+                    navigateToAuditAfterCameraRelease()
                 },
                 onReportClick = {},
                 onFillClick = {
@@ -441,9 +489,13 @@ fun AppNavigation() {
         composable(Routes.DISPENSING_PTP_SCAN) {
             DispensingPtpScanScreen(
                 viewModel = dispensingViewModel,
-                onBack = { navController.popBackStack() },
+                onBack = {
+                    dispensingViewModel.clearScanFeedback()
+                    navController.popBackStack()
+                },
                 onCompleted = {
                     Log.d(TAG, "dispensing_ptp_scan -> dispensing_complete")
+                    dispensingViewModel.clearScanFeedback()
                     navController.navigate(Routes.DISPENSING_COMPLETE) {
                         popUpTo(Routes.DISPENSING_PTP_SCAN) { inclusive = true }
                     }
@@ -457,10 +509,7 @@ fun AppNavigation() {
                 },
                 onAuditClick = {
                     dispensingViewModel.clearSession()
-                    navController.navigate(Routes.AUDIT_SCAN) {
-                        popUpTo(Routes.HOME) { inclusive = false }
-                        launchSingleTop = true
-                    }
+                    navigateToAuditAfterCameraRelease()
                 },
                 onReportClick = {},
                 onFillClick = {
@@ -535,10 +584,7 @@ fun AppNavigation() {
                 },
                 onAuditClick = {
                     dispensingViewModel.clearSession()
-                    navController.navigate(Routes.AUDIT_SCAN) {
-                        popUpTo(Routes.HOME) { inclusive = false }
-                        launchSingleTop = true
-                    }
+                    navigateToAuditAfterCameraRelease()
                 },
                 onReportClick = {},
                 onFillClick = {

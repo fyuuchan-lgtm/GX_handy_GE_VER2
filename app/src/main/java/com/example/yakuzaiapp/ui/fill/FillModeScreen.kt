@@ -74,12 +74,14 @@ import com.example.yakuzaiapp.domain.scan.ScanMode
 import com.example.yakuzaiapp.ui.home.HomeBottomTab
 import com.example.yakuzaiapp.ui.home.HomeBottomTabBar
 import com.example.yakuzaiapp.util.BarcodeAnalyzer
+import java.util.concurrent.Executors
 
 private const val TAG = "FillModeScreen"
 private const val ANALYSIS_WIDTH = 1280
 private const val ANALYSIS_HEIGHT = 720
 private const val VIEW_PORT_BIND_RETRY_LIMIT = 10
 private const val VIEW_PORT_BIND_RETRY_DELAY_MS = 50L
+private const val CAMERA_BIND_RETRY_DELAY_MS = 500L
 private val FillModePanelBlue = Color(0xFF002466)
 
 @Composable
@@ -283,7 +285,8 @@ private fun FillModeCameraContent(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val executor = remember(context) { ContextCompat.getMainExecutor(context) }
+    val mainExecutor = remember(context) { ContextCompat.getMainExecutor(context) }
+    val analysisExecutor = remember { Executors.newSingleThreadExecutor() }
     val previewView = remember(context) {
         PreviewView(context).apply {
             implementationMode = PreviewView.ImplementationMode.COMPATIBLE
@@ -291,6 +294,7 @@ private fun FillModeCameraContent(
     }
     val latestOnBarcodeDetected by rememberUpdatedState(onBarcodeDetected)
     var cameraProvider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
+    var cameraBindRetry by remember(uiState.isComplete) { mutableStateOf(0) }
     val analyzer = remember(context) {
         BarcodeAnalyzer(
             context = context,
@@ -302,6 +306,12 @@ private fun FillModeCameraContent(
             detections.forEach { detection ->
                 latestOnBarcodeDetected(detection.text)
             }
+        }
+    }
+
+    DisposableEffect(analysisExecutor) {
+        onDispose {
+            analysisExecutor.shutdown()
         }
     }
 
@@ -421,7 +431,7 @@ private fun FillModeCameraContent(
         )
     }
 
-    DisposableEffect(lifecycleOwner, analyzer, uiState.isComplete) {
+    DisposableEffect(lifecycleOwner, analyzer, uiState.isComplete, cameraBindRetry) {
         if (uiState.isComplete) {
             runCatching { cameraProvider?.unbindAll() }
             cameraProvider = null
@@ -434,11 +444,20 @@ private fun FillModeCameraContent(
                 if (disposed) {
                     return@Runnable
                 }
-                val provider = cameraProviderFuture.get()
+                val provider = runCatching { cameraProviderFuture.get() }
+                    .onFailure { e ->
+                        Log.w(TAG, "Camera provider unavailable for fill mode", e)
+                        if (!disposed) {
+                            previewView.postDelayed(
+                                { if (!disposed) cameraBindRetry += 1 },
+                                CAMERA_BIND_RETRY_DELAY_MS
+                            )
+                        }
+                    }
+                    .getOrNull() ?: return@Runnable
                 if (disposed) {
                     return@Runnable
                 }
-                cameraProvider = provider
 
                 val preview = Preview.Builder().build().also {
                     it.surfaceProvider = previewView.surfaceProvider
@@ -448,7 +467,7 @@ private fun FillModeCameraContent(
                     .setTargetResolution(Size(ANALYSIS_WIDTH, ANALYSIS_HEIGHT))
                     .build()
                     .also {
-                        it.setAnalyzer(executor, analyzer)
+                        it.setAnalyzer(analysisExecutor, analyzer)
                     }
                 analysisUseCase = analysis
 
@@ -475,6 +494,13 @@ private fun FillModeCameraContent(
                                 )
                             } else {
                                 Log.w(TAG, "Fill mode camera viewport unavailable after retries")
+                                provider.bindToLifecycle(
+                                    lifecycleOwner,
+                                    CameraSelector.DEFAULT_BACK_CAMERA,
+                                    preview,
+                                    analysis
+                                )
+                                cameraProvider = provider
                             }
                             return
                         }
@@ -493,14 +519,23 @@ private fun FillModeCameraContent(
                             CameraSelector.DEFAULT_BACK_CAMERA,
                             useCaseGroup
                         )
+                        cameraProvider = provider
                     }
 
                     bindCroppedUseCases()
                 } catch (e: Throwable) {
                     Log.w(TAG, "Camera binding failure for fill mode", e)
+                    cameraProvider = null
+                    analysis.clearAnalyzer()
+                    if (!disposed) {
+                        previewView.postDelayed(
+                            { if (!disposed) cameraBindRetry += 1 },
+                            CAMERA_BIND_RETRY_DELAY_MS
+                        )
+                    }
                 }
             }
-            cameraProviderFuture.addListener(listener, executor)
+            cameraProviderFuture.addListener(listener, mainExecutor)
 
             onDispose {
                 disposed = true
@@ -520,6 +555,7 @@ private fun ExpirationWarningDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Color(0xFFD50000),
+        shape = RoundedCornerShape(8.dp),
         title = {
             Text(
                 text = "警告",

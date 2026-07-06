@@ -62,12 +62,15 @@ import com.example.yakuzaiapp.ui.home.HomeBottomTab
 import com.example.yakuzaiapp.ui.home.HomeBottomTabBar
 import com.example.yakuzaiapp.util.BarcodeAnalyzer
 import kotlinx.coroutines.launch
+import java.util.concurrent.Executors
 
 private const val TAG = "ScanScreen"
 private const val PTP_ANALYSIS_WIDTH = 1280
 private const val PTP_ANALYSIS_HEIGHT = 720
 private const val JAHIS_ANALYSIS_WIDTH = 1280
 private const val JAHIS_ANALYSIS_HEIGHT = 720
+private const val CAMERA_BIND_RETRY_DELAY_MS = 500L
+private val PrimaryButtonBlue = Color(0xFF002466)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -196,17 +199,25 @@ private fun CameraScanContent(
             implementationMode = PreviewView.ImplementationMode.COMPATIBLE
         }
     }
-    val executor = remember(context) { ContextCompat.getMainExecutor(context) }
+    val mainExecutor = remember(context) { ContextCompat.getMainExecutor(context) }
+    val analysisExecutor = remember { Executors.newSingleThreadExecutor() }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var cameraProvider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
     var activeCamera by remember { mutableStateOf<androidx.camera.core.Camera?>(null) }
+    var cameraBindRetry by remember(mode, continuousMode) { mutableStateOf(0) }
     var ptpZoomRatio by remember(mode) { mutableStateOf(2.0f) }
     val jahisScanViewModel: JahisQrScanViewModel = viewModel()
     val jahisFragments by jahisScanViewModel.fragments.collectAsStateWithLifecycle()
     val autoAssembleEvent by jahisScanViewModel.autoAssembleEvent.collectAsStateWithLifecycle()
     var jahisDelivered by remember(mode) { mutableStateOf(false) }
     val latestJahisDelivered by rememberUpdatedState(jahisDelivered)
+
+    DisposableEffect(analysisExecutor) {
+        onDispose {
+            analysisExecutor.shutdown()
+        }
+    }
 
     val analyzer = remember(context, mode, continuousMode) {
         BarcodeAnalyzer(
@@ -228,6 +239,12 @@ private fun CameraScanContent(
                     jahisScanViewModel = jahisScanViewModel
                 )
             }
+        }
+    }
+
+    DisposableEffect(analyzer) {
+        onDispose {
+            analyzer.close()
         }
     }
 
@@ -391,8 +408,8 @@ private fun CameraScanContent(
                         enabled = jahisFragments.isNotEmpty(),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
+                            containerColor = PrimaryButtonBlue,
+                            contentColor = Color.White
                         ),
                         modifier = Modifier
                             .weight(2f)
@@ -411,6 +428,10 @@ private fun CameraScanContent(
                             onBack()
                         },
                         shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = PrimaryButtonBlue,
+                            contentColor = Color.White
+                        ),
                         modifier = Modifier
                             .weight(1f)
                             .height(58.dp)
@@ -432,7 +453,7 @@ private fun CameraScanContent(
         }
     }
 
-    DisposableEffect(mode, continuousMode, lifecycleOwner, analyzer) {
+    DisposableEffect(mode, continuousMode, lifecycleOwner, analyzer, cameraBindRetry) {
         var disposed = false
         var analysisUseCase: ImageAnalysis? = null
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
@@ -440,11 +461,20 @@ private fun CameraScanContent(
             if (disposed) {
                 return@Runnable
             }
-            val provider = cameraProviderFuture.get()
+            val provider = runCatching { cameraProviderFuture.get() }
+                .onFailure { e ->
+                    Log.w(TAG, "Camera provider unavailable for mode=$mode", e)
+                    if (!disposed) {
+                        previewView.postDelayed(
+                            { if (!disposed) cameraBindRetry += 1 },
+                            CAMERA_BIND_RETRY_DELAY_MS
+                        )
+                    }
+                }
+                .getOrNull() ?: return@Runnable
             if (disposed) {
                 return@Runnable
             }
-            cameraProvider = provider
 
             val preview = Preview.Builder().build().also {
                 it.surfaceProvider = previewView.surfaceProvider
@@ -460,7 +490,7 @@ private fun CameraScanContent(
                 }
             }
             val analysis = analysisBuilder.build().also {
-                it.setAnalyzer(executor, analyzer)
+                it.setAnalyzer(analysisExecutor, analyzer)
             }
             analysisUseCase = analysis
 
@@ -478,11 +508,21 @@ private fun CameraScanContent(
                     preview,
                     analysis
                 )
+                cameraProvider = provider
             } catch (e: Throwable) {
                 Log.w(TAG, "Camera binding failure for mode=$mode", e)
+                cameraProvider = null
+                activeCamera = null
+                analysis.clearAnalyzer()
+                if (!disposed) {
+                    previewView.postDelayed(
+                        { if (!disposed) cameraBindRetry += 1 },
+                        CAMERA_BIND_RETRY_DELAY_MS
+                    )
+                }
             }
         }
-        cameraProviderFuture.addListener(listener, executor)
+        cameraProviderFuture.addListener(listener, mainExecutor)
 
         onDispose {
             disposed = true
@@ -493,7 +533,6 @@ private fun CameraScanContent(
                 // no-op
             }
             activeCamera = null
-            analyzer.close()
             cameraProvider = null
         }
     }

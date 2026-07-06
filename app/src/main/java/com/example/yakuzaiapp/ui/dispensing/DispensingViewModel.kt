@@ -56,6 +56,7 @@ class DispensingViewModel(
     private var lastPtpSuccessGtin: String? = null
     private var lastPtpSuccessAtMs: Long = 0L
     private var ptpCompleted = false
+    private var ptpScanActive = true
 
     private val _longPressDialog = MutableStateFlow<LongPressDialogState?>(null)
     val longPressDialog: StateFlow<LongPressDialogState?> = _longPressDialog.asStateFlow()
@@ -103,9 +104,19 @@ class DispensingViewModel(
         lastPtpSuccessAtMs = 0L
     }
 
+    fun startPtpScanFeedback() {
+        ptpScanActive = true
+        clearScanFeedback()
+    }
+
+    fun stopPtpScanFeedback() {
+        ptpScanActive = false
+        clearScanFeedback()
+    }
+
     fun onPtpScanned(gtin: String) {
         viewModelScope.launch {
-            if (ptpCompleted) {
+            if (ptpCompleted || !ptpScanActive) {
                 return@launch
             }
 
@@ -129,6 +140,9 @@ class DispensingViewModel(
 
             val feedbackSignature = feedbackSignature(matchResult)
             if (feedbackSignature == lastPtpFeedbackSignature && now - lastPtpFeedbackAtMs < 5000L) {
+                return@launch
+            }
+            if (!ptpScanActive) {
                 return@launch
             }
             lastPtpFeedbackSignature = feedbackSignature

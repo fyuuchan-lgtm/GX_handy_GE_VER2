@@ -12,11 +12,15 @@ import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.TextRecognizer
+import com.google.mlkit.vision.text.japanese.JapaneseTextRecognizerOptions
 import java.nio.charset.Charset
 import java.util.concurrent.atomic.AtomicBoolean
 import zxingcpp.BarcodeReader
 
 private const val TAG = "BarcodeAnalyzer"
+private const val TEXT_EXPIRATION_FALLBACK_COOLDOWN_MS = 1500L
 private val WINDOWS_31J: Charset = Charset.forName("Windows-31J")
 private val ISO_8859_1: Charset = Charsets.ISO_8859_1
 
@@ -53,6 +57,7 @@ class BarcodeAnalyzer(
     private val mode: ScanMode = ScanMode.PTP_GTIN,
     private val cooldownMs: Long = 2000L,
     private val useMlKitFallback: Boolean = true,
+    private val useTextExpirationFallback: Boolean = false,
     private val onResult: (List<DetectedQr>) -> Unit
 ) : ImageAnalysis.Analyzer {
     private val zxingReader = BarcodeReader().apply {
@@ -85,11 +90,20 @@ class BarcodeAnalyzer(
         .build()
     private val jahisBarcodeScanner: BarcodeScanner = BarcodeScanning.getClient(jahisScannerOptions)
     private val ptpBarcodeScanner: BarcodeScanner = BarcodeScanning.getClient(ptpScannerOptions)
+    private val textRecognizer: TextRecognizer? = if (useTextExpirationFallback) {
+        TextRecognition.getClient(JapaneseTextRecognizerOptions.Builder().build())
+    } else {
+        null
+    }
     private val mainExecutor = ContextCompat.getMainExecutor(context)
     private val jahisProcessing = AtomicBoolean(false)
     private val ptpMlKitProcessing = AtomicBoolean(false)
+    private val ptpTextProcessing = AtomicBoolean(false)
     private var lastFingerprint: String? = null
     private var lastDetectedAt: Long = 0L
+    private var lastTextFallbackFingerprint: String? = null
+    private var lastTextFallbackAt: Long = 0L
+    private val emitLock = Any()
 
     override fun analyze(image: ImageProxy) {
         when (mode) {
@@ -101,6 +115,7 @@ class BarcodeAnalyzer(
     fun close() {
         runCatching { ptpBarcodeScanner.close() }
         runCatching { jahisBarcodeScanner.close() }
+        runCatching { textRecognizer?.close() }
     }
 
     private fun analyzeWithZxing(image: ImageProxy) {
@@ -116,7 +131,11 @@ class BarcodeAnalyzer(
             }
             if (detections.isNotEmpty()) {
                 emitIfFresh(detections)
-                image.close()
+                if (useTextExpirationFallback && shouldRunTextExpirationFallback(detections)) {
+                    analyzePtpTextExpirationFallback(image, detections)
+                } else {
+                    image.close()
+                }
             } else if (!useMlKitFallback) {
                 image.close()
             } else {
@@ -132,7 +151,7 @@ class BarcodeAnalyzer(
         }
     }
 
-    private fun analyzePtpWithMlKitFallback(image: ImageProxy) {
+    private fun analyzePtpWithMlKitFallback(image: ImageProxy, emitResults: Boolean = true) {
         val mediaImage = image.image
         if (mediaImage == null) {
             image.close()
@@ -159,7 +178,9 @@ class BarcodeAnalyzer(
                         )
                         DetectedQr(text = text, left = left)
                     }
-                    emitIfFresh(detections)
+                    if (emitResults) {
+                        emitIfFresh(detections)
+                    }
                 }
                 .addOnFailureListener(mainExecutor) { e ->
                     Log.w(TAG, "PTP ML Kit fallback analyze failed", e)
@@ -172,6 +193,70 @@ class BarcodeAnalyzer(
             ptpMlKitProcessing.set(false)
             image.close()
             Log.w(TAG, "PTP ML Kit fallback failed before task submission", e)
+        }
+    }
+
+    private fun shouldRunTextExpirationFallback(detections: List<DetectedQr>): Boolean {
+        val fingerprint = detections.joinToString("|") { it.text }
+        val now = System.currentTimeMillis()
+        if (fingerprint == lastTextFallbackFingerprint &&
+            now - lastTextFallbackAt < TEXT_EXPIRATION_FALLBACK_COOLDOWN_MS
+        ) {
+            return false
+        }
+        lastTextFallbackFingerprint = fingerprint
+        lastTextFallbackAt = now
+        return true
+    }
+
+    private fun analyzePtpTextExpirationFallback(
+        image: ImageProxy,
+        barcodeDetections: List<DetectedQr>
+    ) {
+        val recognizer = textRecognizer
+        val mediaImage = image.image
+        if (recognizer == null || mediaImage == null) {
+            image.close()
+            return
+        }
+        if (!ptpTextProcessing.compareAndSet(false, true)) {
+            image.close()
+            return
+        }
+
+        try {
+            val inputImage = InputImage.fromMediaImage(mediaImage, image.imageInfo.rotationDegrees)
+            recognizer.process(inputImage)
+                .addOnSuccessListener(mainExecutor) { text ->
+                    val expirationDate = extractOcrGs1ExpirationDate(text.text)
+                    Log.d(
+                        TAG,
+                        "ocr-ptp text-len=${text.text.length} expiration-found=${expirationDate != null}"
+                    )
+                    if (expirationDate == null) {
+                        return@addOnSuccessListener
+                    }
+
+                    val enriched = barcodeDetections.mapNotNull { detection ->
+                        val gtin = normalizeGtin(detection.text) ?: return@mapNotNull null
+                        DetectedQr(
+                            text = "(01)$gtin(17)$expirationDate",
+                            left = detection.left
+                        )
+                    }
+                    emitIfFresh(enriched)
+                }
+                .addOnFailureListener(mainExecutor) { e ->
+                    Log.w(TAG, "PTP text expiration fallback failed", e)
+                }
+                .addOnCompleteListener(mainExecutor) {
+                    ptpTextProcessing.set(false)
+                    image.close()
+                }
+        } catch (e: Throwable) {
+            ptpTextProcessing.set(false)
+            image.close()
+            Log.w(TAG, "PTP text expiration fallback failed before task submission", e)
         }
     }
 
@@ -239,14 +324,40 @@ class BarcodeAnalyzer(
 
         if (ordered.isEmpty()) return
 
-        val fingerprint = ordered.joinToString("|") { "${it.left}:${it.text}" }
-        val now = System.currentTimeMillis()
-        if (fingerprint == lastFingerprint && now - lastDetectedAt <= cooldownMs) {
-            return
+        val shouldEmit = synchronized(emitLock) {
+            val fingerprint = ordered.joinToString("|") { "${it.left}:${it.text}" }
+            val now = System.currentTimeMillis()
+            if (fingerprint == lastFingerprint && now - lastDetectedAt <= cooldownMs) {
+                false
+            } else {
+                lastFingerprint = fingerprint
+                lastDetectedAt = now
+                true
+            }
         }
-
-        lastFingerprint = fingerprint
-        lastDetectedAt = now
-        onResult(ordered)
+        if (!shouldEmit) return
+        mainExecutor.execute {
+            onResult(ordered)
+        }
     }
+}
+
+private fun extractOcrGs1ExpirationDate(text: String): String? {
+    val normalized = text.map { ch ->
+        when (ch) {
+            in '０'..'９' -> '0' + (ch - '０')
+            '（' -> '('
+            '）' -> ')'
+            else -> ch
+        }
+    }.joinToString("")
+
+    Regex("""\(?\s*17\s*\)?\s*([0-9]{6})""")
+        .find(normalized)
+        ?.groups
+        ?.get(1)
+        ?.value
+        ?.let { return it }
+
+    return null
 }

@@ -32,6 +32,7 @@ enum class IncompleteReason {
 
 object JahisQrAssembler {
     private val RECORD_START_PATTERN = Regex("^(JAHISTC\\d{2}|\\d+,)")
+    private val RP_RECORD_PATTERN = Regex("""(?m)^(201|301),(\d+),""")
 
     fun tryAssemble(qrs: List<DetectedQr>): AssembleResult {
         val filtered = qrs
@@ -40,7 +41,8 @@ object JahisQrAssembler {
             .distinctBy { "${it.left}:${it.text}" }
             .toList()
         val (headers, others) = filtered.partition { hasSupportedHeader(it.text) }
-        val ordered = headers.sortedBy { it.left } + others.sortedBy { it.left }
+        val ordered = headers.sortedBy { it.fragmentOrderKey() } +
+            others.sortedBy { it.fragmentOrderKey() }
 
         if (ordered.isEmpty()) {
             return AssembleResult.NoHeader
@@ -113,5 +115,42 @@ object JahisQrAssembler {
         return text.startsWith("JAHISTC01") ||
             text.startsWith("JAHISTC02") ||
             text.startsWith("JAHISTC07")
+    }
+
+    private fun DetectedQr.fragmentOrderKey(): FragmentOrderKey {
+        val structuredAppendOrder = saSequence
+        val firstRpNumber = RP_RECORD_PATTERN
+            .findAll(text)
+            .mapNotNull { it.groupValues.getOrNull(2)?.toIntOrNull() }
+            .firstOrNull()
+        val firstRecordNumber = text.lineSequence()
+            .map { it.trim() }
+            .mapNotNull { it.substringBefore(",").toIntOrNull() }
+            .firstOrNull()
+
+        return FragmentOrderKey(
+            structuredAppendOrder = structuredAppendOrder ?: Int.MAX_VALUE,
+            firstRpNumber = firstRpNumber ?: Int.MAX_VALUE,
+            firstRecordNumber = firstRecordNumber ?: Int.MAX_VALUE,
+            left = left
+        )
+    }
+
+    private data class FragmentOrderKey(
+        val structuredAppendOrder: Int,
+        val firstRpNumber: Int,
+        val firstRecordNumber: Int,
+        val left: Int
+    ) : Comparable<FragmentOrderKey> {
+        override fun compareTo(other: FragmentOrderKey): Int {
+            return compareValuesBy(
+                this,
+                other,
+                FragmentOrderKey::structuredAppendOrder,
+                FragmentOrderKey::firstRpNumber,
+                FragmentOrderKey::firstRecordNumber,
+                FragmentOrderKey::left
+            )
+        }
     }
 }

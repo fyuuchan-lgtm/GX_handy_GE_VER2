@@ -86,6 +86,96 @@ class JahisQrAssemblerTest {
     }
 
     @Test
+    fun threeQrSampleProducesSixItemsWhenScanPositionOrderIsMisleading() {
+        val result = JahisQrAssembler.tryAssemble(
+            listOf(
+                detected(
+                    """
+                    201,5,Drug E,1,錠,4,5555555555555
+                    301,5,1日1回朝食後,7,日分,1,1,
+                    201,6,Drug F,1,錠,4,6666666666666
+                    301,6,1日2回朝夕,7,日分,1,1,
+                    """.trimIndent() + "\n",
+                    0
+                ),
+                detected(
+                    """
+                    JAHISTC01
+                    1,Test User,1,20000101
+                    5,20260608
+                    11,Test Pharmacy,23,1,2402213
+                    51,Test Hospital,23,1,2402213
+                    55,Test Doctor,Dept
+                    201,1,Drug A,1,錠,4,1111111111111
+                    301,1,1日1回朝食後,7,日分,1,1,
+                    201,2,Drug B,1,錠,4,2222222222222
+                    301,2,1日2回朝夕,7,日分,1,1,
+                    """.trimIndent() + "\n",
+                    500
+                ),
+                detected(
+                    """
+                    201,3,Drug C,1,錠,4,3333333333333
+                    301,3,1日3回朝昼夕食後,7,日分,1,1,
+                    201,4,Drug D,1,錠,4,4444444444444
+                    301,4,1日1回朝食後,7,日分,1,1,
+                    """.trimIndent() + "\n",
+                    900
+                )
+            )
+        )
+
+        assertTrue(result is AssembleResult.Success)
+        val parsed = JahisQrParser.parse((result as AssembleResult.Success).fullText)
+        assertEquals(listOf(1, 2, 3, 4, 5, 6), parsed.rps.map { it.rpNumber })
+    }
+
+    @Test
+    fun structuredAppendSequenceOverridesMisleadingRpAndPositionOrder() {
+        val result = JahisQrAssembler.tryAssemble(
+            listOf(
+                detected(
+                    """
+                    201,5,Drug E,1,錠,4,5555555555555
+                    301,5,1日1回朝食後,7,日分,1,1,
+                    201,6,Drug F,1,錠,4,6666666666666
+                    301,6,1日2回朝夕,7,日分,1,1,
+                    """.trimIndent() + "\n",
+                    left = 0,
+                    saSequence = 2
+                ),
+                detected(
+                    """
+                    201,3,Drug C,1,錠,4,3333333333333
+                    301,3,1日3回朝昼夕食後,7,日分,1,1,
+                    201,4,Drug D,1,錠,4,4444444444444
+                    301,4,1日1回朝食後,7,日分,1,1,
+                    """.trimIndent() + "\n",
+                    left = 900,
+                    saSequence = 1
+                ),
+                detected(
+                    """
+                    JAHISTC01
+                    1,Test User,1,20000101
+                    5,20260608
+                    201,1,Drug A,1,錠,4,1111111111111
+                    301,1,1日1回朝食後,7,日分,1,1,
+                    201,2,Drug B,1,錠,4,2222222222222
+                    301,2,1日2回朝夕,7,日分,1,1,
+                    """.trimIndent() + "\n",
+                    left = 500,
+                    saSequence = 0
+                )
+            )
+        )
+
+        assertTrue(result is AssembleResult.Success)
+        val parsed = JahisQrParser.parse((result as AssembleResult.Success).fullText)
+        assertEquals(listOf(1, 2, 3, 4, 5, 6), parsed.rps.map { it.rpNumber })
+    }
+
+    @Test
     fun headersComeFirstThenOthersByLeft() {
         val result = JahisQrAssembler.tryAssemble(
             listOf(
@@ -374,6 +464,43 @@ class JahisQrAssemblerTest {
     }
 
     @Test
+    fun drugRecordSplitAcrossTwoFragmentsIgnoresMisleadingPositionOrder() {
+        val result = JahisQrAssembler.tryAssemble(
+            listOf(
+                detected(
+                    """
+                    g（ロゼレム）　粒・粉末・,1,錠,4,1190016F1075
+                    301,2,1日1回就寝前,7,日分,1,1,
+                    201,3,☆マグミット錠330mg　粒,3,錠,4,2344009F2031
+                    301,3,1日3回朝昼夕食後,7,日分,1,1,
+                    """.trimIndent() + "\n",
+                    0
+                ),
+                detected(
+                    """
+                    JAHISTC01
+                    1,谷川長子,1,19561116
+                    5,20260609
+                    11,知多厚生総合病院センター,23,1,2402213
+                    51,知多厚生総合病院センター,23,1,2402213
+                    55,テスト医師,内科
+                    201,1,☆デエビゴ錠5mg　粒・粉末・,1,錠,4,1190027F2029
+                    301,1,1日1回朝食後,7,日分,1,1,
+                    201,2,☆ラメルテオン錠8m
+                    """.trimIndent(),
+                    900
+                )
+            )
+        )
+
+        assertTrue(result is AssembleResult.Success)
+        val fullText = (result as AssembleResult.Success).fullText
+        assertTrue(fullText.contains("201,2,☆ラメルテオン錠8mg（ロゼレム）"))
+        val parsed = JahisQrParser.parse(fullText)
+        assertTrue(parsed.rps.any { rp -> rp.drugs.any { it.drugCode == "1190016F1075" } })
+    }
+
+    @Test
     fun rp2ContinuationWithoutNewlineIsJoinedWithoutDelimiter() {
         val result = JahisQrAssembler.tryAssemble(
             listOf(
@@ -477,6 +604,10 @@ class JahisQrAssemblerTest {
         assertEquals(2, parsed.rps.flatMap { it.drugs }.size)
     }
 
-    private fun detected(text: String, left: Int): DetectedQr = DetectedQr(text = text, left = left)
+    private fun detected(
+        text: String,
+        left: Int,
+        saSequence: Int? = null
+    ): DetectedQr = DetectedQr(text = text, left = left, saSequence = saSequence)
 }
 

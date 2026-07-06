@@ -174,13 +174,7 @@ class FillModeViewModel(
     }
 
     fun dismissExpirationWarning() {
-        _uiState.update {
-            it.copy(
-                expirationWarningMessage = null,
-                dismissedExpirationWarningDate = it.warningExpirationDate,
-                warningExpirationDate = null
-            )
-        }
+        reset()
     }
 
     private fun selectDrug(drug: DrugMaster, gtin: String, expirationDateText: String?) {

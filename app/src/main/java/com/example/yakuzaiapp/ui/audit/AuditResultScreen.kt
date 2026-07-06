@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -45,6 +46,8 @@ import com.example.yakuzaiapp.domain.audit.MatchResult
 import com.example.yakuzaiapp.domain.audit.MatchStatus
 import com.example.yakuzaiapp.ui.home.HomeBottomTab
 import com.example.yakuzaiapp.ui.home.HomeBottomTabBar
+
+private val PrimaryButtonBlue = Color(0xFF002466)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,6 +91,10 @@ fun AuditResultScreen(
                     onClick = onProceedPtp,
                     enabled = matchResults.isNotEmpty() && needReviewCount == 0,
                     shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = PrimaryButtonBlue,
+                        contentColor = Color.White
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 16.dp)

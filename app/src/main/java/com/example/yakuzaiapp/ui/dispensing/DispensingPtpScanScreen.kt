@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.util.Log
 import android.util.Size
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
@@ -12,6 +13,7 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -63,6 +65,7 @@ import com.example.yakuzaiapp.ui.home.HomeBottomTabBar
 import com.example.yakuzaiapp.util.BarcodeAnalyzer
 import com.example.yakuzaiapp.util.SoundFeedback
 import com.example.yakuzaiapp.util.VibrationFeedback
+import java.util.concurrent.Executors
 
 private const val TAG = "DispensingPtpScan"
 private const val PTP_ANALYSIS_WIDTH = 1280
@@ -83,6 +86,7 @@ fun DispensingPtpScanScreen(
     val context = LocalContext.current
     val session by viewModel.session.collectAsStateWithLifecycle()
     val isAllChecked by viewModel.isAllChecked.collectAsStateWithLifecycle()
+    var scanEnabled by remember { mutableStateOf(true) }
     var hasCameraPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
@@ -96,10 +100,20 @@ fun DispensingPtpScanScreen(
     }
 
     LaunchedEffect(Unit) {
-        viewModel.clearScanFeedback()
+        viewModel.startPtpScanFeedback()
         if (!hasCameraPermission) {
             permissionLauncher.launch(Manifest.permission.CAMERA)
         }
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.stopPtpScanFeedback()
+        }
+    }
+    BackHandler {
+        scanEnabled = false
+        viewModel.stopPtpScanFeedback()
+        onBack()
     }
     LaunchedEffect(viewModel) {
         viewModel.scanFeedback.collect { result ->
@@ -143,7 +157,11 @@ fun DispensingPtpScanScreen(
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
-                TextButton(onClick = onBack) {
+                TextButton(onClick = {
+                    scanEnabled = false
+                    viewModel.stopPtpScanFeedback()
+                    onBack()
+                }) {
                     Text("戻る")
                 }
             }
@@ -164,8 +182,14 @@ fun DispensingPtpScanScreen(
                     modifier = Modifier.fillMaxSize(),
                     items = session!!.items,
                     isAllChecked = isAllChecked,
+                    scanEnabled = scanEnabled,
                     onBarcodeDetected = viewModel::onPtpScanned,
-                    onCompleted = onCompleted
+                    onItemClick = viewModel::onItemClick,
+                    onCompleted = {
+                        scanEnabled = false
+                        viewModel.stopPtpScanFeedback()
+                        onCompleted()
+                    }
                 )
             }
         }
@@ -195,18 +219,22 @@ private fun PtpCameraAndDispensingList(
     modifier: Modifier,
     items: List<ExpectedDrugItem>,
     isAllChecked: Boolean,
+    scanEnabled: Boolean,
     onBarcodeDetected: (String) -> Unit,
+    onItemClick: (String) -> Unit,
     onCompleted: () -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val executor = remember(context) { ContextCompat.getMainExecutor(context) }
+    val mainExecutor = remember(context) { ContextCompat.getMainExecutor(context) }
+    val analysisExecutor = remember { Executors.newSingleThreadExecutor() }
     val previewView = remember(context) {
         PreviewView(context).apply {
             implementationMode = PreviewView.ImplementationMode.COMPATIBLE
         }
     }
     val latestOnBarcodeDetected by rememberUpdatedState(onBarcodeDetected)
+    val latestScanEnabled by rememberUpdatedState(scanEnabled)
     var cameraProvider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
     var activeCamera by remember { mutableStateOf<androidx.camera.core.Camera?>(null) }
     val analyzer = remember(context) {
@@ -215,7 +243,15 @@ private fun PtpCameraAndDispensingList(
             mode = ScanMode.PTP_GTIN,
             cooldownMs = 500L
         ) { detections ->
-            detections.firstOrNull()?.text?.let { latestOnBarcodeDetected(it) }
+            if (latestScanEnabled) {
+                detections.firstOrNull()?.text?.let { latestOnBarcodeDetected(it) }
+            }
+        }
+    }
+
+    DisposableEffect(analysisExecutor) {
+        onDispose {
+            analysisExecutor.shutdown()
         }
     }
 
@@ -260,7 +296,10 @@ private fun PtpCameraAndDispensingList(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)
         ) {
             items(items, key = { it.id }) { item ->
-                DispensingPtpRow(item = item)
+                DispensingPtpRow(
+                    item = item,
+                    onToggleExcluded = { onItemClick(item.id) }
+                )
                 HorizontalDivider()
             }
         }
@@ -305,7 +344,7 @@ private fun PtpCameraAndDispensingList(
                     .setTargetResolution(Size(PTP_ANALYSIS_WIDTH, PTP_ANALYSIS_HEIGHT))
                     .build()
                     .also {
-                        it.setAnalyzer(executor, analyzer)
+                        it.setAnalyzer(analysisExecutor, analyzer)
                     }
                 analysisUseCase = analysis
 
@@ -329,7 +368,7 @@ private fun PtpCameraAndDispensingList(
                     Log.w(TAG, "Camera binding failure for dispensing ptp scan", e)
                 }
             }
-            cameraProviderFuture.addListener(listener, executor)
+            cameraProviderFuture.addListener(listener, mainExecutor)
 
             onDispose {
                 disposed = true
@@ -344,9 +383,11 @@ private fun PtpCameraAndDispensingList(
 
 @Composable
 private fun DispensingPtpRow(
-    item: ExpectedDrugItem
+    item: ExpectedDrugItem,
+    onToggleExcluded: () -> Unit
 ) {
     val isExcluded = item.status == ItemStatus.PACKING_MACHINE
+    val canToggleExcluded = item.status != ItemStatus.CONFIRMED
     val rowBackground = if (isExcluded) Color(0xFF808080) else Color.White
     val badgeText = when (item.status) {
         ItemStatus.UNCHECKED -> "未"
@@ -365,6 +406,10 @@ private fun DispensingPtpRow(
             .fillMaxWidth()
             .height(72.dp)
             .background(rowBackground)
+            .clickable(
+                enabled = canToggleExcluded,
+                onClick = onToggleExcluded
+            )
             .padding(horizontal = 12.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically

@@ -55,6 +55,8 @@ import com.example.yakuzaiapp.util.SoundFeedback
 import com.example.yakuzaiapp.util.VibrationFeedback
 import java.util.Calendar
 
+private val PrimaryButtonBlue = Color(0xFF002466)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DispensingScreen(
@@ -348,7 +350,11 @@ private fun ReadyContent(
                 modifier = Modifier
                     .weight(1f)
                     .height(60.dp),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = PrimaryButtonBlue,
+                    contentColor = Color.White
+                )
             ) {
                 Text("QR再読込", fontSize = 18.sp)
             }
@@ -357,7 +363,11 @@ private fun ReadyContent(
                 modifier = Modifier
                     .weight(1f)
                     .height(60.dp),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = PrimaryButtonBlue,
+                    contentColor = Color.White
+                )
             ) {
                 Text("PTP確認", fontSize = 18.sp)
             }

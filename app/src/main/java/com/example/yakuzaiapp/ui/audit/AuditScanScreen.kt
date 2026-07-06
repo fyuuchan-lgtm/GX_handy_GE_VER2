@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -51,6 +52,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.Observer
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.yakuzaiapp.R
@@ -61,6 +63,9 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.Executor
 
 private const val TAG = "AuditScanScreen"
+private const val CAMERA_BIND_RETRY_DELAY_MS = 500L
+private const val CAMERA_STREAM_WATCHDOG_MS = 2500L
+private val PrimaryButtonBlue = Color(0xFF002466)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -182,6 +187,19 @@ private fun AuditCameraContent(
     val isProcessing by viewModel.isProcessing.collectAsStateWithLifecycle()
     var cameraProvider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
     var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
+    var cameraBindRetry by remember(isProcessing) { mutableStateOf(0) }
+    var previewStreaming by remember { mutableStateOf(false) }
+
+    DisposableEffect(lifecycleOwner, previewView) {
+        val streamStateObserver = Observer<PreviewView.StreamState> { state ->
+            previewStreaming = state == PreviewView.StreamState.STREAMING
+        }
+        previewView.previewStreamState.observe(lifecycleOwner, streamStateObserver)
+        onDispose {
+            previewView.previewStreamState.removeObserver(streamStateObserver)
+            previewStreaming = false
+        }
+    }
 
     Box(modifier = modifier) {
         if (isProcessing) {
@@ -224,8 +242,12 @@ private fun AuditCameraContent(
                                 executor = executor
                             )
                         },
-                        enabled = imageCapture != null,
+                        enabled = imageCapture != null && previewStreaming,
                         shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = PrimaryButtonBlue,
+                            contentColor = Color.White
+                        ),
                         modifier = Modifier
                             .weight(2f)
                             .height(54.dp)
@@ -239,6 +261,10 @@ private fun AuditCameraContent(
                     Button(
                         onClick = onBack,
                         shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = PrimaryButtonBlue,
+                            contentColor = Color.White
+                        ),
                         modifier = Modifier
                             .weight(1f)
                             .height(54.dp)
@@ -252,7 +278,7 @@ private fun AuditCameraContent(
                 }
             }
 
-            if (cameraProvider == null) {
+            if (cameraProvider == null || !previewStreaming) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
@@ -260,7 +286,33 @@ private fun AuditCameraContent(
         }
     }
 
-    DisposableEffect(lifecycleOwner, isProcessing) {
+    DisposableEffect(cameraProvider, previewStreaming, isProcessing) {
+        if (isProcessing || cameraProvider == null || previewStreaming) {
+            onDispose {
+                // no-op
+            }
+        } else {
+            val retryRunnable = Runnable {
+                if (cameraProvider != null && !previewStreaming) {
+                    Log.w(TAG, "Audit scan preview stream did not start; rebinding camera")
+                    try {
+                        cameraProvider?.unbindAll()
+                    } catch (_: Throwable) {
+                        // no-op
+                    }
+                    imageCapture = null
+                    cameraProvider = null
+                    cameraBindRetry += 1
+                }
+            }
+            previewView.postDelayed(retryRunnable, CAMERA_STREAM_WATCHDOG_MS)
+            onDispose {
+                previewView.removeCallbacks(retryRunnable)
+            }
+        }
+    }
+
+    DisposableEffect(lifecycleOwner, isProcessing, cameraBindRetry) {
         if (isProcessing) {
             try {
                 cameraProvider?.unbindAll()
@@ -269,21 +321,32 @@ private fun AuditCameraContent(
             }
             imageCapture = null
             cameraProvider = null
+            previewStreaming = false
             onDispose {
                 // no-op
             }
         } else {
             var disposed = false
+            previewStreaming = false
             val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
             val listener = Runnable {
                 if (disposed) {
                     return@Runnable
                 }
-                val provider = cameraProviderFuture.get()
+                val provider = runCatching { cameraProviderFuture.get() }
+                    .onFailure { e ->
+                        Log.w(TAG, "Camera provider unavailable for audit scan", e)
+                        if (!disposed) {
+                            previewView.postDelayed(
+                                { if (!disposed) cameraBindRetry += 1 },
+                                CAMERA_BIND_RETRY_DELAY_MS
+                            )
+                        }
+                    }
+                    .getOrNull() ?: return@Runnable
                 if (disposed) {
                     return@Runnable
                 }
-                cameraProvider = provider
 
                 val preview = Preview.Builder().build().also {
                     it.surfaceProvider = previewView.surfaceProvider
@@ -291,13 +354,19 @@ private fun AuditCameraContent(
                 val capture = ImageCapture.Builder()
                     .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
                     .build()
-                imageCapture = capture
 
                 try {
                     if (disposed ||
                         !lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
                     ) {
                         imageCapture = null
+                        previewStreaming = false
+                        if (!disposed) {
+                            previewView.postDelayed(
+                                { if (!disposed) cameraBindRetry += 1 },
+                                CAMERA_BIND_RETRY_DELAY_MS
+                            )
+                        }
                         return@Runnable
                     }
                     provider.unbindAll()
@@ -307,8 +376,19 @@ private fun AuditCameraContent(
                         preview,
                         capture
                     )
+                    cameraProvider = provider
+                    imageCapture = capture
                 } catch (e: Throwable) {
                     Log.w(TAG, "Camera binding failure for audit scan", e)
+                    cameraProvider = null
+                    imageCapture = null
+                    previewStreaming = false
+                    if (!disposed) {
+                        previewView.postDelayed(
+                            { if (!disposed) cameraBindRetry += 1 },
+                            CAMERA_BIND_RETRY_DELAY_MS
+                        )
+                    }
                 }
             }
             cameraProviderFuture.addListener(listener, executor)
@@ -322,6 +402,7 @@ private fun AuditCameraContent(
                 }
                 imageCapture = null
                 cameraProvider = null
+                previewStreaming = false
             }
         }
     }
