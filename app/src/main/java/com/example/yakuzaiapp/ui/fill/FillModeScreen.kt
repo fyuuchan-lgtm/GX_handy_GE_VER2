@@ -342,25 +342,6 @@ private fun FillModeCameraContent(
             )
         }
 
-        if (uiState.selectedStaffId.isNullOrBlank()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color(0xFFFFF3CD))
-                    .padding(horizontal = 20.dp, vertical = 10.dp),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                Text(
-                    text = STAFF_REQUIRED_NOTICE,
-                    color = Color(0xFF6B4E00),
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -382,7 +363,7 @@ private fun FillModeCameraContent(
                         .align(Alignment.Center)
                         .padding(horizontal = 20.dp),
                     color = Color(0xFF6B4E00),
-                    fontSize = 20.sp,
+                    fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
