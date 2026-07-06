@@ -82,6 +82,7 @@ private const val ANALYSIS_HEIGHT = 720
 private const val VIEW_PORT_BIND_RETRY_LIMIT = 10
 private const val VIEW_PORT_BIND_RETRY_DELAY_MS = 50L
 private const val CAMERA_BIND_RETRY_DELAY_MS = 500L
+private const val STAFF_REQUIRED_NOTICE = "\u5229\u7528\u8005\u767b\u9332\u304c\u5fc5\u8981\u3067\u3059"
 private val FillModePanelBlue = Color(0xFF002466)
 
 @Composable
@@ -338,6 +339,25 @@ private fun FillModeCameraContent(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+        }
+
+        if (uiState.selectedStaffId.isNullOrBlank()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFFFFF3CD))
+                    .padding(horizontal = 20.dp, vertical = 10.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Text(
+                    text = STAFF_REQUIRED_NOTICE,
+                    color = Color(0xFF6B4E00),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
 
         Box(

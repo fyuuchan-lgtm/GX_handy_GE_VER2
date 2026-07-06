@@ -217,6 +217,10 @@ class FillModeViewModel(
 
     private suspend fun completeFill(code: String, expirationDateText: String? = null) {
         val before = _uiState.value
+        if (before.selectedStaffId.isNullOrBlank()) {
+            updateStatus(STAFF_REQUIRED_MESSAGE)
+            return
+        }
         _uiState.update {
             it.copy(
                 phase = FillModeStage.COMPLETED,
@@ -405,6 +409,7 @@ class FillModeViewModel(
     companion object {
         private const val TARGET_SCAN_DELAY_MS = 2500L
         private const val SAME_SOURCE_REARM_QUIET_MS = 2200L
+        private const val STAFF_REQUIRED_MESSAGE = "\u5229\u7528\u8005\u767b\u9332\u304c\u5fc5\u8981\u3067\u3059"
         private const val TARGET_SCAN_MESSAGE = "充填先のカセットまたは瓶のコードをスキャンしてください"
 
         val Factory: ViewModelProvider.Factory = viewModelFactory {
