@@ -29,8 +29,15 @@ Copy-Item -LiteralPath build\distributions\yakupita-latest.apk -Destination docs
 
 ## GitHub Actions
 
-`.github/workflows/publish-latest-apk.yml` can also build a release APK and overwrite the
-`yakupita-latest.apk` asset on the `latest` GitHub Release if release-based distribution is restored later.
+`.github/workflows/publish-latest-apk.yml` runs when app, Gradle, or workflow files are pushed to
+`master` or `main`.
+
+The workflow:
+
+1. Builds a signed release APK.
+2. Copies it to `docs/landing/yakupita/downloads/yakupita-latest.apk`.
+3. Commits and pushes that APK back to the repository when it changed.
+4. Uploads the same APK to the `latest` GitHub Release asset.
 
 Configure these repository secrets before running the workflow:
 

@@ -17,6 +17,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: publish-latest-apk
+  cancel-in-progress: true
+
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -48,6 +52,24 @@ jobs:
           RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+
+      - name: Update public download APK
+        run: |
+          mkdir -p docs/landing/yakupita/downloads
+          cp build/distributions/yakupita-latest.apk docs/landing/yakupita/downloads/yakupita-latest.apk
+
+      - name: Commit public download APK
+        run: |
+          if git diff --quiet -- docs/landing/yakupita/downloads/yakupita-latest.apk; then
+            echo "Public APK is already up to date."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/landing/yakupita/downloads/yakupita-latest.apk
+          git commit -m "Update public download APK [skip ci]"
+          git push
 
       - name: Publish latest release asset
         run: |
