@@ -16,6 +16,8 @@ local.properties
 *.aab
 *.ap_
 *.dex
+!docs/landing/yakupita/downloads/
+!docs/landing/yakupita/downloads/yakupita-latest.apk
 
 # Kotlin
 .kotlin/

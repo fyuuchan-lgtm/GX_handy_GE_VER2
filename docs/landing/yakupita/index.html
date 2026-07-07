@@ -16,6 +16,7 @@
       --coral: #ee6b5c;
       --line: #d9e2ec;
       --soft: #f7fbfd;
+      --warning: #8a5b00;
       --white: #ffffff;
     }
 
@@ -163,6 +164,12 @@
       background: rgba(255, 255, 255, 0.8);
     }
 
+    .button-download {
+      color: var(--white);
+      background: var(--coral);
+      border-color: var(--coral);
+    }
+
     .trust-row {
       margin-top: 36px;
       display: flex;
@@ -254,6 +261,82 @@
       background: var(--soft);
       border-top: 1px solid var(--line);
       border-bottom: 1px solid var(--line);
+    }
+
+    .download-band {
+      background: #f8fbff;
+      border-top: 1px solid var(--line);
+    }
+
+    .download-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 0.92fr) minmax(280px, 0.58fr);
+      gap: 28px;
+      align-items: center;
+    }
+
+    .download-panel {
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--white);
+    }
+
+    .download-panel strong {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--navy);
+      font-size: 18px;
+    }
+
+    .download-panel p {
+      margin: 0 0 16px;
+      color: var(--muted);
+      font-weight: 650;
+    }
+
+    .download-url {
+      display: block;
+      width: 100%;
+      margin: 0 0 12px;
+      padding: 10px 12px;
+      overflow-wrap: anywhere;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--navy);
+      background: var(--soft);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .qr-wrap {
+      display: grid;
+      place-items: center;
+      min-height: 188px;
+      margin-bottom: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--white);
+    }
+
+    .qr-wrap img {
+      width: 168px;
+      height: 168px;
+    }
+
+    .download-note {
+      margin: 14px 0 0;
+      color: var(--warning);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .share-status {
+      min-height: 22px;
+      margin: 10px 0 0;
+      color: var(--blue);
+      font-size: 13px;
+      font-weight: 800;
     }
 
     .flow-list {
@@ -357,6 +440,7 @@
 
       .feature-grid,
       .flow-list,
+      .download-layout,
       .mascot-layout {
         grid-template-columns: 1fr;
       }
@@ -382,6 +466,7 @@
       <div class="nav-links">
         <a href="#work">できること</a>
         <a href="#flow">流れ</a>
+        <a href="#download">ダウンロード</a>
         <a href="#mascot">キャラクター</a>
       </div>
     </nav>
@@ -394,7 +479,8 @@
         <h1 id="hero-title">ヤクピタ</h1>
         <p class="lead">帳票監査、調剤確認、充填確認をカメラ読み取りでつなぎ、現場の「これで合っている」をすばやく支えます。</p>
         <div class="actions" aria-label="主要アクション">
-          <a class="button button-primary" href="#work">できることを見る</a>
+          <a class="button button-primary" href="#download">アプリをダウンロード</a>
+          <a class="button button-secondary" href="#work">できることを見る</a>
           <a class="button button-secondary" href="#mascot">ヤクピタくんを見る</a>
         </div>
         <div class="trust-row" aria-label="対応業務">
@@ -455,6 +541,37 @@
       </div>
     </section>
 
+    <section class="download-band" id="download" aria-labelledby="download-title">
+      <div class="section-inner download-layout">
+        <div>
+          <h2 class="section-title" id="download-title">Android 端末へ、すぐに配布。</h2>
+          <p class="section-copy">APK ファイルを端末で開くと、ヤクピタをインストールできます。薬局内での検証用に、最新版の配布ファイルをここから取得できます。</p>
+          <div class="actions">
+            <a
+              class="button button-download"
+              id="download-apk"
+              href="https://raw.githubusercontent.com/fyuuchan-lgtm/GX_handy_GE_VER2/master/docs/landing/yakupita/downloads/yakupita-latest.apk"
+              data-download-url="https://raw.githubusercontent.com/fyuuchan-lgtm/GX_handy_GE_VER2/master/docs/landing/yakupita/downloads/yakupita-latest.apk"
+            >APK をダウンロード</a>
+            <button class="button button-secondary" id="share-download" type="button">LINE 等で共有</button>
+            <a class="button button-secondary" href="qr.html">QRだけ表示</a>
+            <a class="button button-secondary" href="../../user-guide/yakupita-user-guide.html">使い方を見る</a>
+          </div>
+          <p class="share-status" id="share-status" aria-live="polite"></p>
+        </div>
+        <div class="download-panel" aria-label="ダウンロード情報">
+          <strong>URL / QR コード</strong>
+          <div class="qr-wrap">
+            <img id="download-qr" src="" alt="APK ダウンロード URL の QR コード">
+          </div>
+          <a class="download-url" id="download-url" href="https://raw.githubusercontent.com/fyuuchan-lgtm/GX_handy_GE_VER2/master/docs/landing/yakupita/downloads/yakupita-latest.apk">https://raw.githubusercontent.com/fyuuchan-lgtm/GX_handy_GE_VER2/master/docs/landing/yakupita/downloads/yakupita-latest.apk</a>
+          <p>LINE などで上の URL を送ると、受け取った端末から APK を直接ダウンロードできます。</p>
+          <p>ファイル名: yakupita-latest.apk<br>対応端末: Android 9 以降</p>
+          <p class="download-note">インストール時に「提供元不明のアプリ」を許可する必要があります。公開配布では署名済み release APK を配置してください。</p>
+        </div>
+      </div>
+    </section>
+
     <section class="mascot-band" id="mascot" aria-labelledby="mascot-title">
       <div class="section-inner mascot-layout">
         <div>
@@ -470,5 +587,37 @@
   <footer class="site-footer">
     <div class="section-inner">Yakupita / ヤクピタ - Pharmacy workflow checking support.</div>
   </footer>
+  <script>
+    const downloadLink = document.querySelector("#download-apk");
+    const downloadUrl = document.querySelector("#download-url");
+    const downloadQr = document.querySelector("#download-qr");
+    const shareButton = document.querySelector("#share-download");
+    const shareStatus = document.querySelector("#share-status");
+    const apkUrl = downloadLink.dataset.downloadUrl || downloadLink.href;
+
+    downloadLink.href = apkUrl;
+    downloadUrl.href = apkUrl;
+    downloadUrl.textContent = apkUrl;
+    downloadQr.src = `https://api.qrserver.com/v1/create-qr-code/?size=168x168&data=${encodeURIComponent(apkUrl)}`;
+
+    shareButton.addEventListener("click", async () => {
+      try {
+        if (navigator.share) {
+          await navigator.share({
+            title: "ヤクピタ APK ダウンロード",
+            text: "ヤクピタの APK ダウンロード URL です。",
+            url: apkUrl,
+          });
+          shareStatus.textContent = "共有画面を開いたっちゃ。";
+          return;
+        }
+
+        await navigator.clipboard.writeText(apkUrl);
+        shareStatus.textContent = "URL をコピーしました。LINE に貼り付けて送れます。";
+      } catch (error) {
+        shareStatus.textContent = "URL を長押しコピーして LINE に貼り付けてください。";
+      }
+    });
+  </script>
 </body>
 </html>

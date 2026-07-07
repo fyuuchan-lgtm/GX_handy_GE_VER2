@@ -1,0 +1,59 @@
+name: Publish latest APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - ".github/workflows/publish-latest-apk.yml"
+      - "app/**"
+      - "gradle/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle.properties"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Restore Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+
+      - name: Decode release keystore
+        run: |
+          test -n "${{ secrets.RELEASE_KEYSTORE_BASE64 }}"
+          echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 --decode > "$RUNNER_TEMP/yakupita-release.keystore"
+
+      - name: Build release APK
+        run: ./gradlew :app:publishDownloadApk -PdownloadApkVariant=release
+        env:
+          RELEASE_STORE_FILE: ${{ runner.temp }}/yakupita-release.keystore
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+
+      - name: Publish latest release asset
+        run: |
+          if ! gh release view latest >/dev/null 2>&1; then
+            gh release create latest --title "Latest Yakupita APK" --notes "Latest APK for LINE and QR code distribution."
+          fi
+          gh release upload latest build/distributions/yakupita-latest.apk --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}

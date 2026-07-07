@@ -197,6 +197,23 @@ tasks.register("printApkSizeReport") {
     }
 }
 
+val downloadApkVariant = providers.gradleProperty("downloadApkVariant").orElse("debug")
+
+tasks.register<Sync>("publishDownloadApk") {
+    group = "distribution"
+    description = "Builds and copies an APK as build/distributions/yakupita-latest.apk. Pass -PdownloadApkVariant=release for signed release output."
+
+    val variant = downloadApkVariant.get()
+    require(variant == "debug" || variant == "release") {
+        "downloadApkVariant must be debug or release."
+    }
+
+    dependsOn(if (variant == "release") "assembleRelease" else "assembleDebug")
+    from(layout.buildDirectory.file("outputs/apk/$variant/app-arm64-v8a-$variant.apk"))
+    into(rootProject.layout.buildDirectory.dir("distributions"))
+    rename { "yakupita-latest.apk" }
+}
+
 val debugUnitTestAsciiClassesDir = File(
     System.getProperty("java.io.tmpdir"),
     "gx_handy_ge_ver2/debugUnitTest/classes",
