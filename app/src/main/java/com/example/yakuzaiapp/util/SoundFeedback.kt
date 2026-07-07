@@ -1,10 +1,25 @@
 package com.example.yakuzaiapp.util
 
-import android.media.ToneGenerator
+import android.content.Context
 import android.media.AudioManager
+import android.media.MediaPlayer
+import android.media.ToneGenerator
+import com.example.yakuzaiapp.R
 
 object SoundFeedback {
+    @Volatile
+    private var applicationContext: Context? = null
+
+    fun initialize(context: Context) {
+        applicationContext = context.applicationContext
+    }
+
     fun playSuccess() {
+        val context = applicationContext
+        if (context != null && playRawSound(context, R.raw.sound_success)) {
+            return
+        }
+
         playSequence(
             streamType = AudioManager.STREAM_ALARM,
             volume = 100,
@@ -16,6 +31,11 @@ object SoundFeedback {
     }
 
     fun playError() {
+        val context = applicationContext
+        if (context != null && playRawSound(context, R.raw.sound_error_warning2)) {
+            return
+        }
+
         playSequence(
             streamType = AudioManager.STREAM_MUSIC,
             volume = 85,
@@ -23,6 +43,27 @@ object SoundFeedback {
                 ToneSpec(ToneGenerator.TONE_PROP_NACK, 450, 0)
             )
         )
+    }
+
+    private fun playRawSound(context: Context, resId: Int): Boolean {
+        val player = runCatching {
+            MediaPlayer.create(context, resId)
+        }.getOrNull() ?: return false
+
+        return runCatching {
+            player.setOnCompletionListener { completedPlayer ->
+                completedPlayer.release()
+            }
+            player.setOnErrorListener { erroredPlayer, _, _ ->
+                erroredPlayer.release()
+                true
+            }
+            player.start()
+            true
+        }.getOrElse {
+            player.release()
+            false
+        }
     }
 
     private fun playSequence(

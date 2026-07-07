@@ -11,6 +11,7 @@ import com.example.yakuzaiapp.data.repository.DrugPreferenceRepository
 import com.example.yakuzaiapp.data.repository.FacilityRepository
 import com.example.yakuzaiapp.data.repository.StaffSelectionRepository
 import com.example.yakuzaiapp.repository.DrugMasterRepository
+import com.example.yakuzaiapp.util.SoundFeedback
 
 class YakuzaiApplication : Application() {
     val database by lazy { AppDatabase.getInstance(this) }
@@ -32,4 +33,8 @@ class YakuzaiApplication : Application() {
         )
     }
 
+    override fun onCreate() {
+        super.onCreate()
+        SoundFeedback.initialize(this)
+    }
 }

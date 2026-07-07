@@ -3,11 +3,7 @@ package com.example.yakuzaiapp.ui.fill
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
-import android.media.AudioManager
-import android.media.ToneGenerator
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -74,6 +70,7 @@ import com.example.yakuzaiapp.domain.scan.ScanMode
 import com.example.yakuzaiapp.ui.home.HomeBottomTab
 import com.example.yakuzaiapp.ui.home.HomeBottomTabBar
 import com.example.yakuzaiapp.util.BarcodeAnalyzer
+import com.example.yakuzaiapp.util.SoundFeedback
 import java.util.concurrent.Executors
 
 private const val TAG = "FillModeScreen"
@@ -159,11 +156,7 @@ fun FillModeScreen(
 }
 
 private fun playFillModeFeedback(context: Context) {
-    runCatching {
-        val toneGenerator = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100)
-        toneGenerator.startTone(ToneGenerator.TONE_PROP_BEEP2, 160)
-        Handler(Looper.getMainLooper()).postDelayed({ toneGenerator.release() }, 250L)
-    }
+    SoundFeedback.playSuccess()
     runCatching {
         val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val manager = context.getSystemService(VibratorManager::class.java)
