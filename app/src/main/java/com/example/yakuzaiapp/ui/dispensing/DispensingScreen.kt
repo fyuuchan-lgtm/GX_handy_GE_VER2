@@ -466,7 +466,14 @@ private fun PatientHeader(session: DispensingSession) {
         shape = RectangleShape,
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(
+            modifier = Modifier.padding(
+                start = 16.dp,
+                top = 22.dp,
+                end = 16.dp,
+                bottom = 10.dp
+            )
+        ) {
             Text(
                 text = patientSummary(session),
                 style = MaterialTheme.typography.titleLarge,
