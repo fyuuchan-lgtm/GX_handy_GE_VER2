@@ -112,11 +112,14 @@ fun FillModeScreen(
         }
     }
 
-    LaunchedEffect(uiState.phase, uiState.selectedDrugName) {
+    LaunchedEffect(uiState.phase, uiState.selectedDrugName, uiState.warningExpirationDate) {
         if ((uiState.phase == FillModeStage.SELECT_TARGET || uiState.phase == FillModeStage.COMPLETED) &&
             !uiState.selectedDrugName.isNullOrBlank()
         ) {
-            playFillModeFeedback(context)
+            playFillModeFeedback(
+                context = context,
+                isWarning = uiState.expirationWarningMessage != null
+            )
         }
     }
 
@@ -155,8 +158,12 @@ fun FillModeScreen(
     }
 }
 
-private fun playFillModeFeedback(context: Context) {
-    SoundFeedback.playSuccess()
+private fun playFillModeFeedback(context: Context, isWarning: Boolean) {
+    if (isWarning) {
+        SoundFeedback.playError()
+    } else {
+        SoundFeedback.playSuccess()
+    }
     runCatching {
         val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val manager = context.getSystemService(VibratorManager::class.java)
