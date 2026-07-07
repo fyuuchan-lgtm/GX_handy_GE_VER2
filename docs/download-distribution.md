@@ -34,12 +34,12 @@ Copy-Item -LiteralPath build\distributions\yakupita-latest.apk -Destination docs
 
 The workflow:
 
-1. Builds a signed release APK.
+1. Builds a release APK.
 2. Copies it to `docs/landing/yakupita/downloads/yakupita-latest.apk`.
 3. Commits and pushes that APK back to the repository when it changed.
 4. Uploads the same APK to the `latest` GitHub Release asset.
 
-Configure these repository secrets before running the workflow:
+For production signing, configure these repository secrets:
 
 ```text
 RELEASE_KEYSTORE_BASE64
@@ -51,3 +51,8 @@ RELEASE_KEY_PASSWORD
 `RELEASE_KEYSTORE_BASE64` is the base64-encoded Android release keystore. The
 workflow decodes it into a temporary file and passes the signing values to
 Gradle through environment variables.
+
+If the production signing secrets are incomplete, the workflow falls back to
+the Android debug keystore and sets `allowDebugReleaseSigning=true` so the
+public APK URL is still refreshed after app changes. Use release signing
+secrets before sharing APKs outside internal testing.

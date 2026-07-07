@@ -40,10 +40,33 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
 
-      - name: Decode release keystore
+      - name: Prepare signing
         run: |
-          test -n "${{ secrets.RELEASE_KEYSTORE_BASE64 }}"
-          echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 --decode > "$RUNNER_TEMP/yakupita-release.keystore"
+          if [ -n "$RELEASE_KEYSTORE_BASE64" ] && \
+             [ -n "$RELEASE_STORE_PASSWORD" ] && \
+             [ -n "$RELEASE_KEY_ALIAS" ] && \
+             [ -n "$RELEASE_KEY_PASSWORD" ]; then
+            echo "$RELEASE_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/yakupita-release.keystore"
+          else
+            mkdir -p "$HOME/.android"
+            if [ ! -f "$HOME/.android/debug.keystore" ]; then
+              keytool -genkeypair -v \
+                -keystore "$HOME/.android/debug.keystore" \
+                -storepass android \
+                -alias androiddebugkey \
+                -keypass android \
+                -keyalg RSA \
+                -keysize 2048 \
+                -validity 10000 \
+                -dname "CN=Android Debug,O=Android,C=US"
+            fi
+            echo "allowDebugReleaseSigning=true" >> local.properties
+          fi
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
 
       - name: Build release APK
         run: ./gradlew :app:publishDownloadApk -PdownloadApkVariant=release
