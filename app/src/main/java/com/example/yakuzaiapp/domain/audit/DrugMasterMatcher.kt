@@ -183,17 +183,18 @@ class DrugMasterMatcher(
         if (terms.isEmpty()) return emptyList()
         val expectedDosageForm = components.dosageForm ?: contextComponents?.dosageForm
         val expectedSpec = extractSpec(keyword)
-        val requiredTerms = if (contextName.isNullOrBlank()) {
-            emptyList()
-        } else {
-            listOf(keyword, contextComponents?.core.orEmpty())
-                .joinToString(" ")
-                .split(Regex("""[\s　]+"""))
-                .map { it.trim() }
-                .filter { it.length >= 2 }
-        }
-        return gatherCandidates(terms)
-            .filterByRequiredTerms(requiredTerms)
+        val keywordRequiredTerms = listOfNotNull(
+            components.core.ifBlank { keyword.trim() }.takeIf { it.length >= 2 },
+            components.parenAlias?.takeIf { it.length >= 2 }
+        )
+        val contextRequiredTerms = contextComponents?.core.orEmpty().searchRequiredTerms()
+        val keywordMatches = gatherCandidates(terms)
+            .filterByRequiredTerms(keywordRequiredTerms)
+        val contextMatches = keywordMatches
+            .filterByRequiredTerms(contextRequiredTerms)
+            .takeIf { contextRequiredTerms.isNotEmpty() && it.isNotEmpty() }
+            ?: keywordMatches
+        return contextMatches
             .filterBySpec(expectedSpec)
             .filterByDosageForm(expectedDosageForm, "manual-search")
             .toIdentities(preferredTerms = listOfNotNull(keyword, contextName) + terms)
@@ -364,6 +365,12 @@ class DrugMasterMatcher(
         }
         Log.d(TAG, "manual-search requiredTerms=${requiredTerms.joinToString("|")} hits=${filtered.size} (before: $size)")
         return filtered
+    }
+
+    private fun String.searchRequiredTerms(): List<String> {
+        return split(Regex("""[\s　]+"""))
+            .map { it.trim() }
+            .filter { it.length >= 2 }
     }
 
     private fun DrugMaster.matchesSpec(expected: Spec): Boolean {

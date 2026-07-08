@@ -332,6 +332,21 @@ class DrugMasterMatcherTest {
     }
 
     @Test
+    fun searchCandidates_fallsBackToKeywordWhenContextWouldRemoveAllMatches() = runTest {
+        val target = drug(
+            name = "TargetDrug 10mg",
+            hot13 = "target",
+            yjCode = "9999999F0001",
+            packageSpec = "10mg"
+        )
+
+        val result = matcher(target)
+            .searchCandidates(keyword = "TargetDrug", contextName = "WrongOcrName")
+
+        assertEquals(listOf("9999999F0001"), result.map { it.yjCode })
+    }
+
+    @Test
     fun searchCandidates_doesNotInheritContextSpecWhenKeywordHasNoSpec() = runTest {
         val bicanate1000 = drug(
             name = "ビカネイト注1000",
