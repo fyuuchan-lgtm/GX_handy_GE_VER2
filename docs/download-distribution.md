@@ -6,8 +6,17 @@ Yakupita is distributed through the fixed GitHub raw file URL below.
 https://raw.githubusercontent.com/fyuuchan-lgtm/GX_handy_GE_VER2/master/docs/landing/yakupita/downloads/yakupita-latest.apk
 ```
 
-Send this URL in LINE or show the QR code on `docs/landing/yakupita/index.html`.
+Send this URL in LINE, show the QR code on `docs/landing/yakupita/index.html`,
+or open `docs/landing/yakupita/qr.html` when you want a large QR code for scanning.
 Android will still show its normal APK download and install confirmation screens.
+
+## QR Install Flow
+
+1. Open `docs/landing/yakupita/qr.html` on a PC or tablet.
+2. Scan the QR code with the Android device camera.
+3. Download `yakupita-latest.apk`.
+4. Allow installation from the browser or camera app if Android asks for permission.
+5. Open the downloaded APK and install Yakupita.
 
 ## Build Locally
 

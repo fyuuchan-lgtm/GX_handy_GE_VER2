@@ -13,6 +13,7 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -65,6 +67,7 @@ import com.example.yakuzaiapp.ui.home.HomeBottomTabBar
 import com.example.yakuzaiapp.util.BarcodeAnalyzer
 import com.example.yakuzaiapp.util.SoundFeedback
 import com.example.yakuzaiapp.util.VibrationFeedback
+import com.example.yakuzaiapp.util.focusCameraOnPreviewCenter
 import java.util.concurrent.Executors
 
 private const val TAG = "DispensingPtpScan"
@@ -241,7 +244,8 @@ private fun PtpCameraAndDispensingList(
         BarcodeAnalyzer(
             context = context,
             mode = ScanMode.PTP_GTIN,
-            cooldownMs = 500L
+            cooldownMs = 500L,
+            restrictPtpToCenter = true
         ) { detections ->
             if (latestScanEnabled) {
                 detections.firstOrNull()?.text?.let { latestOnBarcodeDetected(it) }
@@ -271,6 +275,17 @@ private fun PtpCameraAndDispensingList(
                 AndroidView(
                     factory = { previewView },
                     modifier = Modifier.fillMaxSize()
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.78f)
+                        .fillMaxHeight(0.84f)
+                        .align(Alignment.Center)
+                        .border(
+                            width = 2.dp,
+                            color = Color.White.copy(alpha = 0.85f),
+                            shape = RoundedCornerShape(8.dp)
+                        )
                 )
             }
             if (!isAllChecked && cameraProvider == null) {
@@ -317,6 +332,7 @@ private fun PtpCameraAndDispensingList(
         }.onFailure { e ->
             Log.w(TAG, "Failed to apply PTP zoom", e)
         }
+        focusCameraOnPreviewCenter(activeCamera, previewView, TAG)
     }
 
     DisposableEffect(lifecycleOwner, analyzer, isAllChecked) {
@@ -364,6 +380,7 @@ private fun PtpCameraAndDispensingList(
                     )
                     cameraProvider = provider
                     activeCamera?.cameraControl?.setZoomRatio(PTP_ZOOM_RATIO)
+                    focusCameraOnPreviewCenter(activeCamera, previewView, TAG)
                 } catch (e: Throwable) {
                     Log.w(TAG, "Camera binding failure for dispensing ptp scan", e)
                 }

@@ -149,6 +149,32 @@ fun AppNavigation() {
             }
         }
     }
+    fun navigateToFillAfterCameraRelease(beforeNavigate: () -> Unit = {}) {
+        beforeNavigate()
+        navController.navigate(Routes.HOME) {
+            popUpTo(Routes.HOME) { inclusive = false }
+            launchSingleTop = true
+        }
+        navigationScope.launch {
+            delay(CAMERA_RELEASE_NAVIGATION_DELAY_MS)
+            navController.navigate(Routes.FILL_MODE) {
+                launchSingleTop = true
+            }
+        }
+    }
+    fun navigateToReportAfterCameraRelease(beforeNavigate: () -> Unit = {}) {
+        beforeNavigate()
+        navController.navigate(Routes.HOME) {
+            popUpTo(Routes.HOME) { inclusive = false }
+            launchSingleTop = true
+        }
+        navigationScope.launch {
+            delay(CAMERA_RELEASE_NAVIGATION_DELAY_MS)
+            navController.navigate(Routes.scanner(ScanMode.JAHIS_QR)) {
+                launchSingleTop = true
+            }
+        }
+    }
 
     DisposableEffect(lifecycleOwner, medisAutoUpdateCoordinator) {
         val observer = LifecycleEventObserver { _, event ->
@@ -252,10 +278,7 @@ fun AppNavigation() {
                     }
                 },
                 onFillClick = {
-                    navController.navigate(Routes.FILL_MODE) {
-                        popUpTo(Routes.HOME) { inclusive = false }
-                        launchSingleTop = true
-                    }
+                    navigateToFillAfterCameraRelease()
                 },
                 onDataUpdateClick = {},
             )
@@ -272,17 +295,12 @@ fun AppNavigation() {
                 },
                 onAuditClick = {},
                 onReportClick = {
-                    dispensingViewModel.clearSession()
-                    navController.navigate(Routes.scanner(ScanMode.JAHIS_QR)) {
-                        popUpTo(Routes.HOME) { inclusive = false }
-                        launchSingleTop = true
+                    navigateToReportAfterCameraRelease {
+                        dispensingViewModel.clearSession()
                     }
                 },
                 onFillClick = {
-                    navController.navigate(Routes.FILL_MODE) {
-                        popUpTo(Routes.HOME) { inclusive = false }
-                        launchSingleTop = true
-                    }
+                    navigateToFillAfterCameraRelease()
                 },
                 onDataUpdateClick = {
                     navigateToUserSelection()
@@ -314,18 +332,14 @@ fun AppNavigation() {
                 },
                 onAuditClick = {},
                 onReportClick = {
-                    auditScanViewModel.clearResult()
-                    dispensingViewModel.clearSession()
-                    navController.navigate(Routes.scanner(ScanMode.JAHIS_QR)) {
-                        popUpTo(Routes.HOME) { inclusive = false }
-                        launchSingleTop = true
+                    navigateToReportAfterCameraRelease {
+                        auditScanViewModel.clearResult()
+                        dispensingViewModel.clearSession()
                     }
                 },
                 onFillClick = {
-                    auditScanViewModel.clearResult()
-                    navController.navigate(Routes.FILL_MODE) {
-                        popUpTo(Routes.HOME) { inclusive = false }
-                        launchSingleTop = true
+                    navigateToFillAfterCameraRelease {
+                        auditScanViewModel.clearResult()
                     }
                 },
                 onDataUpdateClick = {
@@ -362,18 +376,14 @@ fun AppNavigation() {
                 },
                 onAuditClick = {},
                 onReportClick = {
-                    auditScanViewModel.clearResult()
-                    dispensingViewModel.clearSession()
-                    navController.navigate(Routes.scanner(ScanMode.JAHIS_QR)) {
-                        popUpTo(Routes.HOME) { inclusive = false }
-                        launchSingleTop = true
+                    navigateToReportAfterCameraRelease {
+                        auditScanViewModel.clearResult()
+                        dispensingViewModel.clearSession()
                     }
                 },
                 onFillClick = {
-                    auditScanViewModel.clearResult()
-                    navController.navigate(Routes.FILL_MODE) {
-                        popUpTo(Routes.HOME) { inclusive = false }
-                        launchSingleTop = true
+                    navigateToFillAfterCameraRelease {
+                        auditScanViewModel.clearResult()
                     }
                 },
                 onDataUpdateClick = {
@@ -423,10 +433,8 @@ fun AppNavigation() {
                     navigateToAuditAfterCameraRelease()
                 },
                 onReportClick = {
-                    dispensingViewModel.clearSession()
-                    navController.navigate(Routes.scanner(ScanMode.JAHIS_QR)) {
-                        popUpTo(Routes.HOME) { inclusive = false }
-                        launchSingleTop = true
+                    navigateToReportAfterCameraRelease {
+                        dispensingViewModel.clearSession()
                     }
                 },
                 onFillClick = {},
@@ -476,10 +484,7 @@ fun AppNavigation() {
                 },
                 onReportClick = {},
                 onFillClick = {
-                    navController.navigate(Routes.FILL_MODE) {
-                        popUpTo(Routes.HOME) { inclusive = false }
-                        launchSingleTop = true
-                    }
+                    navigateToFillAfterCameraRelease()
                 },
                 onDataUpdateClick = {
                     navigateToUserSelection()
@@ -513,10 +518,8 @@ fun AppNavigation() {
                 },
                 onReportClick = {},
                 onFillClick = {
-                    dispensingViewModel.clearSession()
-                    navController.navigate(Routes.FILL_MODE) {
-                        popUpTo(Routes.HOME) { inclusive = false }
-                        launchSingleTop = true
+                    navigateToFillAfterCameraRelease {
+                        dispensingViewModel.clearSession()
                     }
                 },
                 onDataUpdateClick = {
@@ -588,10 +591,8 @@ fun AppNavigation() {
                 },
                 onReportClick = {},
                 onFillClick = {
-                    dispensingViewModel.clearSession()
-                    navController.navigate(Routes.FILL_MODE) {
-                        popUpTo(Routes.HOME) { inclusive = false }
-                        launchSingleTop = true
+                    navigateToFillAfterCameraRelease {
+                        dispensingViewModel.clearSession()
                     }
                 },
                 onDataUpdateClick = {

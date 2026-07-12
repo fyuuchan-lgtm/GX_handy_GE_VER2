@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -71,6 +72,7 @@ import com.example.yakuzaiapp.ui.home.HomeBottomTab
 import com.example.yakuzaiapp.ui.home.HomeBottomTabBar
 import com.example.yakuzaiapp.util.BarcodeAnalyzer
 import com.example.yakuzaiapp.util.SoundFeedback
+import com.example.yakuzaiapp.util.focusCameraOnPreviewCenter
 import java.util.concurrent.Executors
 
 private const val TAG = "FillModeScreen"
@@ -295,6 +297,7 @@ private fun FillModeCameraContent(
     }
     val latestOnBarcodeDetected by rememberUpdatedState(onBarcodeDetected)
     var cameraProvider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
+    var activeCamera by remember { mutableStateOf<androidx.camera.core.Camera?>(null) }
     var cameraBindRetry by remember(uiState.isComplete) { mutableStateOf(0) }
     val cameraEnabled = !uiState.isComplete && !uiState.selectedStaffId.isNullOrBlank()
     val analyzer = remember(context) {
@@ -303,7 +306,8 @@ private fun FillModeCameraContent(
             mode = ScanMode.PTP_GTIN,
             cooldownMs = 1000L,
             useMlKitFallback = true,
-            useTextExpirationFallback = true
+            useTextExpirationFallback = true,
+            restrictPtpToCenter = true
         ) { detections ->
             detections.forEach { detection ->
                 latestOnBarcodeDetected(detection.text)
@@ -352,6 +356,17 @@ private fun FillModeCameraContent(
                 AndroidView(
                     factory = { previewView },
                     modifier = Modifier.fillMaxSize()
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.78f)
+                        .fillMaxHeight(0.84f)
+                        .align(Alignment.Center)
+                        .border(
+                            width = 2.dp,
+                            color = Color.White.copy(alpha = 0.85f),
+                            shape = RoundedCornerShape(8.dp)
+                        )
                 )
                 if (cameraProvider == null) {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
@@ -449,6 +464,7 @@ private fun FillModeCameraContent(
         if (!cameraEnabled) {
             runCatching { cameraProvider?.unbindAll() }
             cameraProvider = null
+            activeCamera = null
             onDispose {}
         } else {
             var disposed = false
@@ -508,13 +524,14 @@ private fun FillModeCameraContent(
                                 )
                             } else {
                                 Log.w(TAG, "Fill mode camera viewport unavailable after retries")
-                                provider.bindToLifecycle(
+                                activeCamera = provider.bindToLifecycle(
                                     lifecycleOwner,
                                     CameraSelector.DEFAULT_BACK_CAMERA,
                                     preview,
                                     analysis
                                 )
                                 cameraProvider = provider
+                                focusCameraOnPreviewCenter(activeCamera, previewView, TAG)
                             }
                             return
                         }
@@ -528,18 +545,20 @@ private fun FillModeCameraContent(
                             .addUseCase(preview)
                             .addUseCase(analysis)
                             .build()
-                        provider.bindToLifecycle(
+                        activeCamera = provider.bindToLifecycle(
                             lifecycleOwner,
                             CameraSelector.DEFAULT_BACK_CAMERA,
                             useCaseGroup
                         )
                         cameraProvider = provider
+                        focusCameraOnPreviewCenter(activeCamera, previewView, TAG)
                     }
 
                     bindCroppedUseCases()
                 } catch (e: Throwable) {
                     Log.w(TAG, "Camera binding failure for fill mode", e)
                     cameraProvider = null
+                    activeCamera = null
                     analysis.clearAnalyzer()
                     if (!disposed) {
                         previewView.postDelayed(
@@ -556,6 +575,7 @@ private fun FillModeCameraContent(
                 analysisUseCase?.clearAnalyzer()
                 runCatching { cameraProvider?.unbindAll() }
                 cameraProvider = null
+                activeCamera = null
             }
         }
     }

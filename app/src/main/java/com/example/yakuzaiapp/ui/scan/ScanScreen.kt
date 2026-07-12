@@ -61,6 +61,7 @@ import com.example.yakuzaiapp.domain.scan.ScanMode
 import com.example.yakuzaiapp.ui.home.HomeBottomTab
 import com.example.yakuzaiapp.ui.home.HomeBottomTabBar
 import com.example.yakuzaiapp.util.BarcodeAnalyzer
+import com.example.yakuzaiapp.util.focusCameraOnPreviewCenter
 import kotlinx.coroutines.launch
 import java.util.concurrent.Executors
 
@@ -226,7 +227,8 @@ private fun CameraScanContent(
             cooldownMs = when (mode) {
                 ScanMode.PTP_GTIN -> if (continuousMode) 500L else 2000L
                 ScanMode.JAHIS_QR -> 1000L
-            }
+            },
+            restrictPtpToCenter = mode == ScanMode.PTP_GTIN
         ) { detections ->
             when (mode) {
                 ScanMode.PTP_GTIN -> handlePtpDetections(
@@ -266,6 +268,7 @@ private fun CameraScanContent(
             }.onFailure { e ->
                 Log.w(TAG, "Failed to apply PTP zoom ratio=$ptpZoomRatio", e)
             }
+            focusCameraOnPreviewCenter(activeCamera, previewView, TAG)
         }
     }
 
@@ -509,6 +512,9 @@ private fun CameraScanContent(
                     analysis
                 )
                 cameraProvider = provider
+                if (mode == ScanMode.PTP_GTIN) {
+                    focusCameraOnPreviewCenter(activeCamera, previewView, TAG)
+                }
             } catch (e: Throwable) {
                 Log.w(TAG, "Camera binding failure for mode=$mode", e)
                 cameraProvider = null

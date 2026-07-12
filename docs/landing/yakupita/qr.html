@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ヤクピタ APK ダウンロード QR</title>
-  <meta name="description" content="ヤクピタ APK をダウンロードするためのQRコードです。">
+  <title>ヤクピタ APK ダウンロードQR</title>
+  <meta name="description" content="ヤクピタ APK をAndroid端末にダウンロードするためのQRコードです。">
   <style>
     :root {
       --ink: #132033;
@@ -13,6 +13,7 @@
       --line: #d9e2ec;
       --soft: #f7fbfd;
       --white: #ffffff;
+      --warning: #8a5b00;
     }
 
     * {
@@ -32,15 +33,22 @@
     }
 
     main {
-      width: min(520px, 100%);
+      width: min(560px, 100%);
       text-align: center;
     }
 
     h1 {
-      margin: 0 0 16px;
-      font-size: clamp(28px, 8vw, 44px);
+      margin: 0 0 12px;
+      font-size: clamp(30px, 8vw, 46px);
       line-height: 1.1;
       letter-spacing: 0;
+    }
+
+    .lead {
+      margin: 0 0 20px;
+      color: var(--muted);
+      font-size: 17px;
+      font-weight: 700;
     }
 
     .qr {
@@ -66,9 +74,10 @@
       text-decoration: none;
     }
 
-    p {
+    .note {
       margin: 14px 0 0;
-      color: var(--muted);
+      color: var(--warning);
+      font-size: 14px;
       font-weight: 700;
     }
   </style>
@@ -76,11 +85,12 @@
 <body>
   <main>
     <h1>ヤクピタ APK</h1>
+    <p class="lead">Android端末のカメラで読み取ると、最新版APKのダウンロードが始まります。</p>
     <img class="qr" id="download-qr" src="" alt="ヤクピタ APK ダウンロードURLのQRコード">
     <a class="url" id="download-url" href="https://raw.githubusercontent.com/fyuuchan-lgtm/GX_handy_GE_VER2/master/docs/landing/yakupita/downloads/yakupita-latest.apk">
       https://raw.githubusercontent.com/fyuuchan-lgtm/GX_handy_GE_VER2/master/docs/landing/yakupita/downloads/yakupita-latest.apk
     </a>
-    <p>Android端末でQRコードを読み込むと、APKをダウンロードできます。</p>
+    <p class="note">インストール時に、Androidの確認画面で「不明なアプリのインストール」を許可してください。</p>
   </main>
   <script>
     const apkUrl = "https://raw.githubusercontent.com/fyuuchan-lgtm/GX_handy_GE_VER2/master/docs/landing/yakupita/downloads/yakupita-latest.apk";

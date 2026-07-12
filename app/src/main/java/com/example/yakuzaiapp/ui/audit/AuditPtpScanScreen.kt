@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -68,6 +69,7 @@ import com.example.yakuzaiapp.ui.home.HomeBottomTabBar
 import com.example.yakuzaiapp.util.BarcodeAnalyzer
 import com.example.yakuzaiapp.util.SoundFeedback
 import com.example.yakuzaiapp.util.VibrationFeedback
+import com.example.yakuzaiapp.util.focusCameraOnPreviewCenter
 import java.util.concurrent.Executors
 
 private const val TAG = "AuditPtpScanScreen"
@@ -119,12 +121,15 @@ fun AuditPtpScanScreen(
     }
     LaunchedEffect(viewModel) {
         viewModel.scanFeedback.collect { result ->
-            if (result is ScanMatchResult.Success) {
-                SoundFeedback.playSuccess()
-            } else {
-                SoundFeedback.playError()
-                if (shouldVibrateForFeedback(result)) {
-                    VibrationFeedback.error(context)
+            when (result) {
+                is ScanMatchResult.Success -> SoundFeedback.playSuccess()
+                is ScanMatchResult.AlreadyConfirmed,
+                is ScanMatchResult.PackingMachine -> Unit
+                else -> {
+                    SoundFeedback.playError()
+                    if (shouldVibrateForFeedback(result)) {
+                        VibrationFeedback.error(context)
+                    }
                 }
             }
             viewModel.clearMessage()
@@ -219,11 +224,13 @@ private fun PtpCameraAndList(
     }
     val latestOnBarcodeDetected by rememberUpdatedState(onBarcodeDetected)
     var cameraProvider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
+    var activeCamera by remember { mutableStateOf<androidx.camera.core.Camera?>(null) }
     val analyzer = remember(context) {
         BarcodeAnalyzer(
             context = context,
             mode = ScanMode.PTP_GTIN,
-            cooldownMs = 1000L
+            cooldownMs = 1000L,
+            restrictPtpToCenter = true
         ) { detections ->
             detections.forEach { detection ->
                 latestOnBarcodeDetected(detection.text)
@@ -254,6 +261,17 @@ private fun PtpCameraAndList(
                 AndroidView(
                     factory = { previewView },
                     modifier = Modifier.fillMaxSize()
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.78f)
+                        .fillMaxHeight(0.84f)
+                        .align(Alignment.Center)
+                        .border(
+                            width = 2.dp,
+                            color = Color.White.copy(alpha = 0.85f),
+                            shape = RoundedCornerShape(8.dp)
+                        )
                 )
             }
             if (!isComplete && cameraProvider == null) {
@@ -352,6 +370,7 @@ private fun PtpCameraAndList(
                 // no-op
             }
             cameraProvider = null
+            activeCamera = null
             onDispose {
                 // no-op
             }
@@ -384,13 +403,14 @@ private fun PtpCameraAndList(
                         return@Runnable
                     }
                     provider.unbindAll()
-                    provider.bindToLifecycle(
+                    activeCamera = provider.bindToLifecycle(
                         lifecycleOwner,
                         CameraSelector.DEFAULT_BACK_CAMERA,
                         preview,
                         analysis
                     )
                     cameraProvider = provider
+                    focusCameraOnPreviewCenter(activeCamera, previewView, TAG)
                 } catch (e: Throwable) {
                     Log.w(TAG, "Camera binding failure for audit ptp scan", e)
                 }
@@ -406,6 +426,7 @@ private fun PtpCameraAndList(
                     // no-op
                 }
                 cameraProvider = null
+                activeCamera = null
             }
         }
     }

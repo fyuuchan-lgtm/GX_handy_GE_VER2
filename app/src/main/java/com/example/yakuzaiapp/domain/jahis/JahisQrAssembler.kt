@@ -6,6 +6,9 @@ import com.example.yakuzaiapp.data.jahis.JahisQrParser
 data class DetectedQr(
     val text: String,
     val left: Int,
+    val centerX: Int? = null,
+    val centerY: Int? = null,
+    val area: Int? = null,
     val saSequence: Int? = null,
     val saTotal: Int? = null,
     val saParity: Int? = null,

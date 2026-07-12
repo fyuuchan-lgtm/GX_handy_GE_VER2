@@ -99,11 +99,10 @@
         #eef8fb;
     }
 
-    .hero-inner {
+    .hero-inner,
+    .section-inner {
       width: min(1120px, calc(100% - 32px));
       margin: 0 auto;
-      position: relative;
-      z-index: 1;
     }
 
     .eyebrow {
@@ -152,10 +151,15 @@
       border: 2px solid var(--blue);
       font-weight: 800;
       font-size: 15px;
+      cursor: pointer;
+    }
+
+    .button-primary,
+    .button-download {
+      color: var(--white);
     }
 
     .button-primary {
-      color: var(--white);
       background: var(--blue);
     }
 
@@ -165,7 +169,6 @@
     }
 
     .button-download {
-      color: var(--white);
       background: var(--coral);
       border-color: var(--coral);
     }
@@ -191,11 +194,6 @@
       padding: 72px 0;
     }
 
-    .section-inner {
-      width: min(1120px, calc(100% - 32px));
-      margin: 0 auto;
-    }
-
     .section-title {
       margin: 0 0 12px;
       font-size: clamp(30px, 4vw, 48px);
@@ -211,18 +209,27 @@
       font-weight: 650;
     }
 
-    .feature-grid {
+    .feature-grid,
+    .flow-list {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 16px;
+    }
+
+    .feature-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .feature-card,
+    .flow-step,
+    .download-panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--white);
     }
 
     .feature-card {
       min-height: 220px;
       padding: 22px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--white);
       box-shadow: 0 14px 34px rgba(19, 32, 51, 0.07);
     }
 
@@ -251,7 +258,9 @@
       letter-spacing: 0;
     }
 
-    .feature-card p {
+    .feature-card p,
+    .flow-step span,
+    .download-panel p {
       margin: 0;
       color: var(--muted);
       font-weight: 650;
@@ -261,6 +270,36 @@
       background: var(--soft);
       border-top: 1px solid var(--line);
       border-bottom: 1px solid var(--line);
+    }
+
+    .flow-list {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      counter-reset: flow;
+    }
+
+    .flow-step {
+      min-height: 150px;
+      padding: 20px;
+    }
+
+    .flow-step::before {
+      counter-increment: flow;
+      content: counter(flow);
+      display: grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      color: var(--white);
+      background: var(--navy);
+      font-weight: 900;
+      margin-bottom: 14px;
+    }
+
+    .flow-step strong {
+      display: block;
+      font-size: 18px;
+      margin-bottom: 6px;
     }
 
     .download-band {
@@ -277,9 +316,6 @@
 
     .download-panel {
       padding: 22px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--white);
     }
 
     .download-panel strong {
@@ -290,9 +326,7 @@
     }
 
     .download-panel p {
-      margin: 0 0 16px;
-      color: var(--muted);
-      font-weight: 650;
+      margin-bottom: 16px;
     }
 
     .download-url {
@@ -325,7 +359,6 @@
     }
 
     .download-note {
-      margin: 14px 0 0;
       color: var(--warning);
       font-size: 13px;
       font-weight: 700;
@@ -337,48 +370,6 @@
       color: var(--blue);
       font-size: 13px;
       font-weight: 800;
-    }
-
-    .flow-list {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 12px;
-      counter-reset: flow;
-    }
-
-    .flow-step {
-      position: relative;
-      min-height: 150px;
-      padding: 20px;
-      background: var(--white);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-    }
-
-    .flow-step::before {
-      counter-increment: flow;
-      content: counter(flow);
-      display: grid;
-      place-items: center;
-      width: 30px;
-      height: 30px;
-      border-radius: 8px;
-      color: var(--white);
-      background: var(--navy);
-      font-weight: 900;
-      margin-bottom: 14px;
-    }
-
-    .flow-step strong {
-      display: block;
-      font-size: 18px;
-      margin-bottom: 6px;
-    }
-
-    .flow-step span {
-      color: var(--muted);
-      font-size: 14px;
-      font-weight: 650;
     }
 
     .mascot-band {
@@ -510,7 +501,7 @@
           <article class="feature-card">
             <div class="feature-label">充</div>
             <h3>充填確認</h3>
-            <p>薬品と充填先のコードを読み取り、取り違えを起こしやすい作業を支えます。</p>
+            <p>薬品と充填先のコードを読み取り、取り違えを起こしにくい作業を支えます。</p>
           </article>
         </div>
       </div>
@@ -544,33 +535,29 @@
     <section class="download-band" id="download" aria-labelledby="download-title">
       <div class="section-inner download-layout">
         <div>
-          <h2 class="section-title" id="download-title">Android 端末へ、すぐに配布。</h2>
-          <p class="section-copy">APK ファイルを端末で開くと、ヤクピタをインストールできます。薬局内での検証用に、最新版の配布ファイルをここから取得できます。</p>
+          <h2 class="section-title" id="download-title">Android端末へ、QRでインストール。</h2>
+          <p class="section-copy">Android端末でQRコードを読み取ると、最新版APKを直接ダウンロードできます。薬局内での検証用に、同じURLをLINEなどで共有できます。</p>
           <div class="actions">
             <a
               class="button button-download"
               id="download-apk"
               href="https://raw.githubusercontent.com/fyuuchan-lgtm/GX_handy_GE_VER2/master/docs/landing/yakupita/downloads/yakupita-latest.apk"
               data-download-url="https://raw.githubusercontent.com/fyuuchan-lgtm/GX_handy_GE_VER2/master/docs/landing/yakupita/downloads/yakupita-latest.apk"
-            >APK をダウンロード</a>
-            <button class="button button-secondary" id="share-download" type="button">LINE 等で共有</button>
-            <a
-              class="button button-secondary"
-              href="https://api.qrserver.com/v1/create-qr-code/?size=360x360&data=https%3A%2F%2Fraw.githubusercontent.com%2Ffyuuchan-lgtm%2FGX_handy_GE_VER2%2Fmaster%2Fdocs%2Flanding%2Fyakupita%2Fdownloads%2Fyakupita-latest.apk"
-            >QRだけ表示</a>
+            >APKをダウンロード</a>
+            <a class="button button-secondary" href="qr.html">QRを大きく表示</a>
+            <button class="button button-secondary" id="share-download" type="button">URLを共有</button>
             <a class="button button-secondary" href="../../user-guide/yakupita-user-guide.html">使い方を見る</a>
           </div>
           <p class="share-status" id="share-status" aria-live="polite"></p>
         </div>
         <div class="download-panel" aria-label="ダウンロード情報">
-          <strong>URL / QR コード</strong>
+          <strong>URL / QRコード</strong>
           <div class="qr-wrap">
-            <img id="download-qr" src="" alt="APK ダウンロード URL の QR コード">
+            <img id="download-qr" src="" alt="APKダウンロードURLのQRコード">
           </div>
           <a class="download-url" id="download-url" href="https://raw.githubusercontent.com/fyuuchan-lgtm/GX_handy_GE_VER2/master/docs/landing/yakupita/downloads/yakupita-latest.apk">https://raw.githubusercontent.com/fyuuchan-lgtm/GX_handy_GE_VER2/master/docs/landing/yakupita/downloads/yakupita-latest.apk</a>
-          <p>LINE などで上の URL を送ると、受け取った端末から APK を直接ダウンロードできます。</p>
-          <p>ファイル名: yakupita-latest.apk<br>対応端末: Android 9 以降</p>
-          <p class="download-note">インストール時に「提供元不明のアプリ」を許可する必要があります。公開配布では署名済み release APK を配置してください。</p>
+          <p>ファイル名: yakupita-latest.apk<br>対応端末: Android 9以上</p>
+          <p class="download-note">インストール時に「提供元不明のアプリ」を許可する必要があります。公開配布では署名済みrelease APKを配置してください。</p>
         </div>
       </div>
     </section>
@@ -582,7 +569,7 @@
           <p class="section-copy">薬局の忙しい確認作業に、少しだけ安心感と親しみを。読み取り・照合・充填確認の相棒として使えるキャラクターです。</p>
           <p class="quote">「ピタッと確認！」</p>
         </div>
-        <img src="assets/yakupita-mascot-phone.png" alt="スマホで読み取り確認するヤクピタのマスコットキャラクター">
+        <img src="assets/yakupita-mascot-phone.png" alt="スマートフォンで読み取り確認するヤクピタのマスコットキャラクター">
       </div>
     </section>
   </main>
@@ -608,7 +595,7 @@
         if (navigator.share) {
           await navigator.share({
             title: "ヤクピタ APK ダウンロード",
-            text: "ヤクピタの APK ダウンロード URL です。",
+            text: "ヤクピタのAPKダウンロードURLです。",
             url: apkUrl,
           });
           shareStatus.textContent = "共有画面を開いたっちゃ。";
@@ -616,9 +603,9 @@
         }
 
         await navigator.clipboard.writeText(apkUrl);
-        shareStatus.textContent = "URL をコピーしました。LINE に貼り付けて送れます。";
+        shareStatus.textContent = "URLをコピーしました。LINEなどに貼り付けて送れます。";
       } catch (error) {
-        shareStatus.textContent = "URL を長押しコピーして LINE に貼り付けてください。";
+        shareStatus.textContent = "URLを長押ししてコピーしてください。";
       }
     });
   </script>

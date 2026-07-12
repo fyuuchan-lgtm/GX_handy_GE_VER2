@@ -9,8 +9,8 @@ import android.os.Looper
 import com.example.yakuzaiapp.R
 
 object SoundFeedback {
-    private const val SUCCESS_MAX_DURATION_MS = 400
-    private const val SUCCESS_FADE_OUT_MS = 80
+    private const val SUCCESS_MAX_DURATION_MS = 1200
+    private const val SUCCESS_FADE_OUT_MS = 200
     private const val FADE_STEPS = 4
 
     @Volatile

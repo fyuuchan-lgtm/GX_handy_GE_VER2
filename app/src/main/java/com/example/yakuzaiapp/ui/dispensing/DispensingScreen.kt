@@ -434,7 +434,7 @@ private fun CompleteContent(
                 modifier = Modifier
                     .weight(2f)
                     .height(54.dp),
-                shape = RectangleShape,
+                shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFFD32F2F),
                     contentColor = Color.White
@@ -447,7 +447,7 @@ private fun CompleteContent(
                 modifier = Modifier
                     .weight(1f)
                     .height(54.dp),
-                shape = RectangleShape,
+                shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF1565C0),
                     contentColor = Color.White
