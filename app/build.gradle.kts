@@ -29,16 +29,58 @@ fun secretProperty(name: String): String? {
         ?: providers.environmentVariable(envName).orNull
 }
 
+val privacyReleaseFiles = listOf(
+    "src/main/java/com/example/yakuzaiapp/ui/privacy/PrivacyPolicyScreen.kt",
+    "../docs/landing/yakupita/privacy.html",
+    "../docs/play-console/data-safety-draft.md",
+    "../docs/play-console/health-app-declaration-draft.md",
+).map(::file)
+val privacyLandingPage = file("../docs/landing/yakupita/index.html")
+
+val verifyPrivacyReleaseConfiguration by tasks.registering {
+    group = "verification"
+    description = "Checks privacy placeholders and policy-version consistency before release builds."
+    inputs.files(privacyReleaseFiles)
+    inputs.file(privacyLandingPage)
+    doLast {
+        val incompleteFiles = privacyReleaseFiles.filter { file ->
+            !file.isFile || file.readText().contains("PRIVACY_RELEASE_REQUIRED")
+        }
+        if (incompleteFiles.isNotEmpty()) {
+            throw GradleException(
+                "Privacy release configuration is incomplete: " +
+                    incompleteFiles.joinToString { it.relativeTo(rootProject.projectDir).path },
+            )
+        }
+        val policyVersionPattern = Regex("PRIVACY_POLICY_VERSION=([0-9-]+)")
+        val policyVersions = privacyReleaseFiles
+            .filter { it.extension == "kt" || it.extension == "html" }
+            .mapNotNull { policyVersionPattern.find(it.readText())?.groupValues?.get(1) }
+        if (policyVersions.size != 2 || policyVersions.distinct().size != 1) {
+            throw GradleException("In-app and public privacy policy versions do not match")
+        }
+        val publicPolicy = file("../docs/landing/yakupita/privacy.html").readText()
+        if (Regex("(?i)\\b(?:noindex|nofollow)\\b").containsMatchIn(publicPolicy) ||
+            !privacyLandingPage.readText().contains("href=\"privacy.html\"")
+        ) {
+            throw GradleException(
+                "Public privacy policy must be indexable and linked from the landing page",
+            )
+        }
+    }
+}
+
 android {
     namespace = "com.example.yakuzaiapp"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.example.yakuzaiapp"
         minSdk = 28
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     signingConfigs {
@@ -126,6 +168,10 @@ android {
     }
 }
 
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    dependsOn(verifyPrivacyReleaseConfiguration)
+}
+
 dependencies {
     implementation("io.github.zxing-cpp:android:2.3.0")
     implementation("com.google.zxing:core:3.5.3")
@@ -160,7 +206,12 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
 
+    androidTestImplementation("androidx.test.ext:junit:1.1.5")
+    androidTestImplementation("androidx.test:runner:1.5.2")
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4:1.6.1")
+
     debugImplementation("androidx.compose.ui:ui-tooling:1.6.1")
+    debugImplementation("androidx.compose.ui:ui-test-manifest:1.6.1")
 }
 
 tasks.register("printApkSizeReport") {

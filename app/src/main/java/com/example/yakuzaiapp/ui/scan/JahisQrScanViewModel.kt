@@ -43,13 +43,6 @@ internal fun isStructuredAppendComplete(fragments: List<DetectedQr>): Boolean {
     return sequences == expectedSequences
 }
 
-private fun escapeForLog(s: String): String {
-    return s
-        .replace("\\", "\\\\")
-        .replace("\r", "\\r")
-        .replace("\n", "\\n")
-}
-
 class JahisQrScanViewModel : ViewModel() {
     private val _fragments = MutableStateFlow<List<DetectedQr>>(emptyList())
     val fragments: StateFlow<List<DetectedQr>> = _fragments.asStateFlow()
@@ -70,12 +63,10 @@ class JahisQrScanViewModel : ViewModel() {
         detections.forEach { detection ->
             val text = detection.text
             val saSummary = "seq=${detection.saSequence ?: "null"}/total=${detection.saTotal ?: "null"}/parity=${detection.saParity ?: "null"}"
-            val keyHead = escapeForLog(text.take(40))
-            val keyTail = escapeForLog(text.takeLast(40))
             if (text.isBlank()) {
                 Log.d(
                     TAG,
-                    "no new fragment accepted; key-head='$keyHead' key-tail='$keyTail' sa=$saSummary existing-keys-count=${current.size}"
+                    "no new fragment accepted; text-len=0 sa=$saSummary existing-count=${current.size}"
                 )
                 return@forEach
             }
@@ -92,12 +83,12 @@ class JahisQrScanViewModel : ViewModel() {
                     mutated = true
                     Log.d(
                         TAG,
-                        "replaced fragment with longer one old-len=${existing.text.length} new-len=${text.length} key-head='$keyHead' key-tail='$keyTail' sa=$saSummary existing-keys-count=${current.size}"
+                        "replaced fragment old-len=${existing.text.length} new-len=${text.length} sa=$saSummary existing-count=${current.size}"
                     )
                 } else {
                     Log.d(
                         TAG,
-                        "no new fragment accepted; key-head='$keyHead' key-tail='$keyTail' sa=$saSummary existing-keys-count=${current.size}"
+                        "no new fragment accepted; text-len=${text.length} sa=$saSummary existing-count=${current.size}"
                     )
                 }
                 return@forEach
@@ -108,7 +99,7 @@ class JahisQrScanViewModel : ViewModel() {
             mutated = true
             Log.d(
                 TAG,
-                "accepted new fragment count=${current.size} added=$added key-head='$keyHead' key-tail='$keyTail' sa=$saSummary existing-keys-count=${current.size}"
+                "accepted new fragment count=${current.size} added=$added text-len=${text.length} sa=$saSummary"
             )
         }
 

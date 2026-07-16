@@ -3,6 +3,7 @@ package com.example.yakuzaiapp.util
 import android.content.Context
 import android.graphics.Point
 import android.util.Log
+import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.core.content.ContextCompat
@@ -28,13 +29,6 @@ private const val PTP_MIN_BARCODE_AREA_RATIO = 0.0025f
 private val WINDOWS_31J: Charset = Charset.forName("Windows-31J")
 private val ISO_8859_1: Charset = Charsets.ISO_8859_1
 
-private fun escapeForLog(s: String): String {
-    return s
-        .replace("\\", "\\\\")
-        .replace("\r", "\\r")
-        .replace("\n", "\\n")
-}
-
 internal fun decodeJahisMlKitText(rawValue: String?, rawBytes: ByteArray?): String? {
     rawBytes?.takeIf { it.isNotEmpty() }?.let { bytes ->
         val decoded = runCatching { String(bytes, WINDOWS_31J) }.getOrNull()
@@ -56,6 +50,7 @@ internal fun decodeJahisMlKitText(rawValue: String?, rawBytes: ByteArray?): Stri
     return null
 }
 
+@androidx.annotation.OptIn(ExperimentalGetImage::class)
 class BarcodeAnalyzer(
     context: Context,
     private val mode: ScanMode = ScanMode.PTP_GTIN,
@@ -153,7 +148,7 @@ class BarcodeAnalyzer(
                 val left = result.position.points().minOfOrNull { it.x } ?: 0
                 Log.d(
                     TAG,
-                    "zxing-ptp format=${result.format} text-len=${text.length} left=$left center=($centerX,$centerY) area=$area text-head='${escapeForLog(text.take(40))}'"
+                    "zxing-ptp format=${result.format} text-len=${text.length} left=$left center=($centerX,$centerY) area=$area"
                 )
                 DetectedQr(
                     text = text,
@@ -238,7 +233,7 @@ class BarcodeAnalyzer(
                         }
                         Log.d(
                             TAG,
-                            "mlkit-ptp format=${barcode.format} text-len=${text.length} left=$left center=($centerX,$centerY) area=$area text-head='${escapeForLog(text.take(40))}'"
+                            "mlkit-ptp format=${barcode.format} text-len=${text.length} left=$left center=($centerX,$centerY) area=$area"
                         )
                         DetectedQr(
                             text = text,
@@ -363,7 +358,7 @@ class BarcodeAnalyzer(
                         val left = barcode.cornerPoints?.minOfOrNull { it.x } ?: 0
                         Log.d(
                             TAG,
-                            "mlkit-jahis qr text-len=${text.length} left=$left text-head='${escapeForLog(text.take(40))}'"
+                            "mlkit-jahis qr text-len=${text.length} left=$left"
                         )
                         DetectedQr(
                             text = text,

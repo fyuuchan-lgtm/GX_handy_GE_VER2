@@ -62,6 +62,7 @@ import com.example.yakuzaiapp.ui.home.HomeBottomTab
 import com.example.yakuzaiapp.ui.home.HomeScreen
 import com.example.yakuzaiapp.ui.fill.FillModeScreen
 import com.example.yakuzaiapp.ui.medis.MedisImportScreen
+import com.example.yakuzaiapp.ui.privacy.PrivacyPolicyScreen
 import com.example.yakuzaiapp.ui.result.ResultScreen
 import com.example.yakuzaiapp.ui.scan.ScanScreen
 import com.example.yakuzaiapp.ui.search.DrugDetailScreen
@@ -95,6 +96,7 @@ object Routes {
     const val USER_REGISTRATION = "user_registration"
     const val USER_SELECTION = "user_selection"
     const val SETTINGS = "settings"
+    const val PRIVACY_POLICY = "privacy_policy"
     const val CHECKLIST = "checklist"
     const val RESULT = "result"
     const val RESULT_WITH_GTIN = "result/{gtin}"
@@ -202,6 +204,7 @@ fun AppNavigation() {
                 onOpenFacilityRegistration = { navController.navigate(Routes.FACILITY_REGISTRATION) },
                 onOpenUserRegistration = { navController.navigate(Routes.USER_REGISTRATION) },
                 onOpenFillHistory = { navController.navigate(Routes.FILL_LOG) },
+                onOpenPrivacyPolicy = { navController.navigate(Routes.PRIVACY_POLICY) },
                 onOpenUserSelection = { navigateToUserSelection() },
                 onOpenFillMode = {
                     Log.d(TAG, "home -> fill_mode")
@@ -547,7 +550,7 @@ fun AppNavigation() {
                 }
                 LaunchedEffect(dispensingViewModel) {
                     dispensingViewModel.scanFeedback.collect { result ->
-                        Log.d(TAG, "scanFeedback=$result")
+                        Log.d(TAG, "scanFeedback type=${result::class.simpleName}")
                         Toast.makeText(context, feedbackMessage(result), Toast.LENGTH_SHORT).show()
                         if (result is ScanMatchResult.Success) {
                             SoundFeedback.playSuccess()
@@ -633,6 +636,9 @@ fun AppNavigation() {
                 message = "ここに設定画面を実装する。",
                 onBack = { navController.popBackStack() },
             )
+        }
+        composable(Routes.PRIVACY_POLICY) {
+            PrivacyPolicyScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.CHECKLIST) {
             ChecklistScreen(onBack = { navController.popBackStack() })

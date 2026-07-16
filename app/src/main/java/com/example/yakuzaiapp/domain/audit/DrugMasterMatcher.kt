@@ -111,7 +111,7 @@ class DrugMasterMatcher(
         val spec = extractSpec(ocrName)
         Log.d(
             TAG,
-            "input='$ocrName' core='${components.core}' dosage=${components.dosageForm} spec=${spec?.value}${spec?.unit.orEmpty()}"
+            "match input-len=${ocrName.length} has-core=${components.core.isNotBlank()} has-dosage=${components.dosageForm != null} has-spec=${spec != null}"
         )
 
         val searchTerms = listOfNotNull(
@@ -291,7 +291,7 @@ class DrugMasterMatcher(
 
         val pref = preferenceDao?.findByMatchKey(matchKey) ?: return base
         val preferred = base.candidates.find { it.yjCode == pref.yjCode } ?: return base
-        Log.d(TAG, "preference hit key='$matchKey' yj=${pref.yjCode}")
+        Log.d(TAG, "preference hit")
         return base.copy(
             candidates = listOf(preferred),
             status = MatchStatus.CONFIRMED,
@@ -308,7 +308,7 @@ class DrugMasterMatcher(
         }
         Log.d(
             TAG,
-            "result $status drug='${identities.firstOrNull()?.displayName}' yj=${identities.firstOrNull()?.yjCode}"
+            "result status=$status candidates=${identities.size}"
         )
         return MatchResult(
             ocrName = ocrName,
@@ -363,7 +363,7 @@ class DrugMasterMatcher(
             ).joinToString(" ").let { normalize(it) }
             normalizedTerms.all { term -> searchable.contains(term) }
         }
-        Log.d(TAG, "manual-search requiredTerms=${requiredTerms.joinToString("|")} hits=${filtered.size} (before: $size)")
+        Log.d(TAG, "manual-search term-count=${requiredTerms.size} hits=${filtered.size} (before: $size)")
         return filtered
     }
 

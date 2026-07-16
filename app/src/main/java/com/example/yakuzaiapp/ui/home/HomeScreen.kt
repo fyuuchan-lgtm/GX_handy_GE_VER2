@@ -64,6 +64,7 @@ fun HomeScreen(
     onOpenFacilityRegistration: () -> Unit,
     onOpenUserRegistration: () -> Unit,
     onOpenFillHistory: () -> Unit,
+    onOpenPrivacyPolicy: () -> Unit,
     onOpenUserSelection: () -> Unit,
     onOpenFillMode: () -> Unit,
     onOpenDispensing: () -> Unit,
@@ -125,6 +126,13 @@ fun HomeScreen(
                                 onClick = {
                                     menuExpanded = false
                                     onOpenFillHistory()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("プライバシーポリシー") },
+                                onClick = {
+                                    menuExpanded = false
+                                    onOpenPrivacyPolicy()
                                 },
                             )
                         }

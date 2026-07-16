@@ -121,9 +121,6 @@ object DocumentOcrParser {
             .distinctBy { it.name }
 
         Log.d(TAG, "detected drug names=${result.size}")
-        result.forEachIndexed { index, line ->
-            Log.d(TAG, "line[$index] name='${line.name}' blocks=${line.sourceLines}")
-        }
         return result
     }
 

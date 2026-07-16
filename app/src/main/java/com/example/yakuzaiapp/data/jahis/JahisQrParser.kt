@@ -31,7 +31,7 @@ object JahisQrParser {
 
             val recordNo = cols.firstOrNull()?.toIntOrNull()
             if (recordNo == null) {
-                warn("Skip invalid record: $line")
+                warn("Skip invalid record")
                 return@forEach
             }
 
@@ -50,10 +50,10 @@ object JahisQrParser {
                     55 -> parseDoctor(cols, state)
                     201 -> parseDrug(cols, state.version, rpMap)
                     301 -> parseUsage(cols, rpMap)
-                    else -> warn("Skip unsupported recordNo=$recordNo: $line")
+                    else -> warn("Skip unsupported recordNo=$recordNo")
                 }
-            } catch (e: Exception) {
-                warn("Skip recordNo=$recordNo due to parse error: ${e.message}", e)
+            } catch (_: Exception) {
+                warn("Skip recordNo=$recordNo due to parse error")
             }
         }
 
@@ -101,7 +101,7 @@ object JahisQrParser {
     ) {
         val rpNumber = cols.getOrNull(1)?.toIntOrNull()
         if (rpNumber == null) {
-            warn("Skip drug record without rpNumber: ${cols.joinToString(",")}")
+            warn("Skip drug record without rpNumber")
             return
         }
 
@@ -116,7 +116,7 @@ object JahisQrParser {
         val genericCode = fields.genericCode?.takeIf { it.isNotBlank() }
 
         if (drugName.isNullOrBlank() || quantity.isNullOrBlank() || unit.isNullOrBlank()) {
-            warn("Skip drug record with missing fields: ${cols.joinToString(",")}")
+            warn("Skip drug record with missing fields")
             return
         }
 
@@ -132,19 +132,19 @@ object JahisQrParser {
             genericCodeType = genericCodeType,
             genericCode = genericCode,
         )
-        Log.d(TAG, "Parsed drug: codeType=$drugCodeType, code=$drugCode, name=$drugName")
+        Log.d(TAG, "Parsed drug record")
     }
 
     private fun parseUsage(cols: List<String>, rpMap: MutableMap<Int, MutableRp>) {
         val rpNumber = cols.getOrNull(1)?.toIntOrNull()
         if (rpNumber == null) {
-            warn("Skip usage record without rpNumber: ${cols.joinToString(",")}")
+            warn("Skip usage record without rpNumber")
             return
         }
         val usage = cols.getOrNull(2)?.takeIf { it.isNotBlank() }
             ?: cols.getOrNull(3)?.takeIf { it.isNotBlank() }
         if (usage.isNullOrBlank()) {
-            warn("Skip usage record without usage text: ${cols.joinToString(",")}")
+            warn("Skip usage record without usage text")
             return
         }
         val rp = rpMap.getOrPut(rpNumber) { MutableRp(rpNumber) }
@@ -191,19 +191,11 @@ object JahisQrParser {
         return version == "JAHISTC01" || version == "JAHISTC07"
     }
 
-    private fun warn(message: String, throwable: Throwable? = null) {
+    private fun warn(message: String) {
         try {
-            if (throwable == null) {
-                Log.w(TAG, message)
-            } else {
-                Log.w(TAG, message, throwable)
-            }
+            Log.w(TAG, message)
         } catch (_: Throwable) {
-            if (throwable == null) {
-                println("$TAG: $message")
-            } else {
-                println("$TAG: $message\n${throwable.stackTraceToString()}")
-            }
+            println("$TAG: $message")
         }
     }
 

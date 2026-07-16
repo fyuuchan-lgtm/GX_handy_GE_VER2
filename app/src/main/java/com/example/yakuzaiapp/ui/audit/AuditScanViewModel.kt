@@ -162,15 +162,11 @@ class AuditScanViewModel(
     }
 
     private fun logOcrResult(result: Text) {
-        Log.d(TAG, "===== OCR result start =====")
-        Log.d(TAG, "full-text: ${result.text}")
-        result.textBlocks.forEachIndexed { blockIndex, block ->
-            Log.d(TAG, "block[$blockIndex] text='${block.text}' bounds=${block.boundingBox}")
-            block.lines.forEachIndexed { lineIndex, line ->
-                Log.d(TAG, "block[$blockIndex] line[$lineIndex] text='${line.text}'")
-            }
-        }
-        Log.d(TAG, "===== OCR result end =====")
+        val lineCount = result.textBlocks.sumOf { it.lines.size }
+        Log.d(
+            TAG,
+            "OCR completed text-len=${result.text.length} blocks=${result.textBlocks.size} lines=$lineCount"
+        )
     }
 
     companion object {

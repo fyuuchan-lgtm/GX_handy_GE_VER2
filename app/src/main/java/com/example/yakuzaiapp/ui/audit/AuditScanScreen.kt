@@ -6,6 +6,7 @@ import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.ImageProxy
@@ -408,6 +409,7 @@ private fun AuditCameraContent(
     }
 }
 
+@androidx.annotation.OptIn(ExperimentalGetImage::class)
 private fun captureAndRunOcr(
     imageCapture: ImageCapture?,
     viewModel: AuditScanViewModel,

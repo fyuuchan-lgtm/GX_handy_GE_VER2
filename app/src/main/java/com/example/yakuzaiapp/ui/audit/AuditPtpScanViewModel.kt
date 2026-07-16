@@ -87,7 +87,7 @@ class AuditPtpScanViewModel(
             if (drugMaster == null) {
                 _uiState.update { it.copy(lastMessage = "マスターに該当なし: $gtin") }
                 _scanFeedback.emit(ScanMatchResult.UnregisteredGtin(gtin))
-                Log.d(TAG, "scan gtin=$gtin -> not found")
+                Log.d(TAG, "scan result=not-found")
                 return@launch
             }
 
@@ -98,7 +98,7 @@ class AuditPtpScanViewModel(
                 _scanFeedback.emit(ScanMatchResult.NotInList(drugMaster.displayLabel))
                 Log.d(
                     TAG,
-                    "scan gtin=$gtin masterYj=${drugMaster.yjCode} drugCode=${drugMaster.drugCode} resolvedYj=${resolvedYjCodes.joinToString("|")} -> not in audit"
+                    "scan result=not-in-audit resolved-code-count=${resolvedYjCodes.size}"
                 )
                 return@launch
             }
@@ -107,7 +107,7 @@ class AuditPtpScanViewModel(
             if (alreadyScanned != null) {
                 _uiState.update { it.copy(lastMessage = "スキャン済みです") }
                 _scanFeedback.emit(ScanMatchResult.AlreadyConfirmed(alreadyScanned.displayName))
-                Log.d(TAG, "scan gtin=$gtin yj=${matchedRow.yjCode} -> already scanned")
+                Log.d(TAG, "scan result=already-scanned")
                 return@launch
             }
 
@@ -133,7 +133,7 @@ class AuditPtpScanViewModel(
             _scanFeedback.emit(ScanMatchResult.Success(matchedRow.yjCode, matchedRow.displayName))
             Log.d(
                 TAG,
-                "scan gtin=$gtin masterYj=${drugMaster.yjCode} drugCode=${drugMaster.drugCode} matchedYj=${matchedRow.yjCode} -> matched complete=$complete"
+                "scan result=matched complete=$complete"
             )
         }
     }

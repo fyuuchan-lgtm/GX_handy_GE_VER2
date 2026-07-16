@@ -13,6 +13,9 @@ on:
       - "build.gradle.kts"
       - "settings.gradle.kts"
       - "gradle.properties"
+      - "docs/landing/yakupita/privacy.html"
+      - "docs/landing/yakupita/index.html"
+      - "docs/play-console/**"
 
 permissions:
   contents: write
@@ -42,26 +45,11 @@ jobs:
 
       - name: Prepare signing
         run: |
-          if [ -n "$RELEASE_KEYSTORE_BASE64" ] && \
-             [ -n "$RELEASE_STORE_PASSWORD" ] && \
-             [ -n "$RELEASE_KEY_ALIAS" ] && \
-             [ -n "$RELEASE_KEY_PASSWORD" ]; then
-            echo "$RELEASE_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/yakupita-release.keystore"
-          else
-            mkdir -p "$HOME/.android"
-            if [ ! -f "$HOME/.android/debug.keystore" ]; then
-              keytool -genkeypair -v \
-                -keystore "$HOME/.android/debug.keystore" \
-                -storepass android \
-                -alias androiddebugkey \
-                -keypass android \
-                -keyalg RSA \
-                -keysize 2048 \
-                -validity 10000 \
-                -dname "CN=Android Debug,O=Android,C=US"
-            fi
-            echo "allowDebugReleaseSigning=true" >> local.properties
-          fi
+          test -n "$RELEASE_KEYSTORE_BASE64"
+          test -n "$RELEASE_STORE_PASSWORD"
+          test -n "$RELEASE_KEY_ALIAS"
+          test -n "$RELEASE_KEY_PASSWORD"
+          echo "$RELEASE_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/yakupita-release.keystore"
         env:
           RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
           RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}

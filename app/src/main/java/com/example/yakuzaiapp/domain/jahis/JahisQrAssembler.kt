@@ -77,7 +77,7 @@ object JahisQrAssembler {
                 AssembleResult.Success(fullText)
             }
         } catch (e: Throwable) {
-            debugLog("result: ParseFailed(${e.message})")
+            debugLog("result: ParseFailed")
             AssembleResult.ParseFailed(e.message ?: "JAHIS QR parse failed")
         }
     }

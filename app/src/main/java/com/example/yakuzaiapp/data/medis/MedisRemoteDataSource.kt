@@ -7,6 +7,18 @@ import java.net.HttpURLConnection
 import java.net.URI
 import java.net.URL
 
+internal fun requireMedisHttpsUri(uri: URI): URI {
+    require(uri.scheme.equals("https", ignoreCase = true)) {
+        "MEDIS download requires HTTPS"
+    }
+    return uri
+}
+
+internal fun resolveMedisRedirect(currentUri: URI, location: String, redirectCount: Int): URI {
+    require(redirectCount <= 5) { "Too many MEDIS redirects" }
+    return requireMedisHttpsUri(currentUri.resolve(location))
+}
+
 data class MedisDownloadLinks(
     val hotZipUrl: String,
     val hotVersionDate: String,
@@ -48,16 +60,28 @@ class HttpMedisRemoteDataSource : MedisRemoteDataSource {
     }
 
     private fun openConnection(url: String): HttpURLConnection {
-        val connection = URL(url).openConnection() as HttpURLConnection
-        connection.connectTimeout = 20_000
-        connection.readTimeout = 60_000
-        connection.setRequestProperty("User-Agent", "YakuzaiApp/1.0")
-        val statusCode = connection.responseCode
-        if (statusCode !in 200..299) {
-            connection.disconnect()
-            throw IllegalStateException("HTTP $statusCode: $url")
+        var currentUri = requireMedisHttpsUri(URI(url))
+        var redirectCount = 0
+        while (true) {
+            val connection = URL(currentUri.toString()).openConnection() as HttpURLConnection
+            connection.instanceFollowRedirects = false
+            connection.connectTimeout = 20_000
+            connection.readTimeout = 60_000
+            connection.setRequestProperty("User-Agent", "YakuzaiApp/1.0")
+            val statusCode = connection.responseCode
+            if (statusCode in REDIRECT_STATUS_CODES) {
+                val location = connection.getHeaderField("Location")
+                connection.disconnect()
+                require(!location.isNullOrBlank()) { "MEDIS redirect is missing Location" }
+                redirectCount += 1
+                currentUri = resolveMedisRedirect(currentUri, location, redirectCount)
+            } else if (statusCode in 200..299) {
+                return connection
+            } else {
+                connection.disconnect()
+                throw IllegalStateException("MEDIS download failed with HTTP $statusCode")
+            }
         }
-        return connection
     }
 
     private inline fun <T> HttpURLConnection.use(block: (HttpURLConnection) -> T): T {
@@ -71,6 +95,7 @@ class HttpMedisRemoteDataSource : MedisRemoteDataSource {
     private companion object {
         const val HOT_INDEX_URL = "https://www2.medis.or.jp/hcode/"
         const val SALES_INDEX_URL = "https://medhot.medd.jp/view_download"
+        val REDIRECT_STATUS_CODES = setOf(301, 302, 303, 307, 308)
     }
 }
 

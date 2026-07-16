@@ -77,19 +77,17 @@ class ExpectedListBuilder(
 
     private suspend fun matchDrug(drug: JahisDrug): DrugMaster? {
         val normalizedLookupCode = normalizeYjCode(drug.drugCode)
-        debugLog("ExpectedListBuilder: input codeType=${drug.drugCodeType} rawCode=${drug.drugCode}")
-        debugLog("ExpectedListBuilder: normalized code=$normalizedLookupCode")
+        debugLog("ExpectedListBuilder: input codeType=${drug.drugCodeType} hasCode=${normalizedLookupCode != null}")
 
         val matchedByCode = normalizedLookupCode?.let { code ->
             val hit = drugMasterDao.findByYjCode(code)
-            debugLog("ExpectedListBuilder: findByYjCode hit=${hit?.gtin ?: hit?.hot13 ?: "null"}")
+            debugLog("ExpectedListBuilder: findByYjCode hit=${hit != null}")
             hit
         }
 
         if (matchedByCode != null) {
             debugLog(
-                "matchByCode drugCodeType=${drug.drugCodeType} drugCode=${drug.drugCode} " +
-                    "drugName=${drug.drugName} matchedYj=${matchedByCode.yjCode} matchedName=${matchedByCode.drugName}"
+                "matchByCode codeType=${drug.drugCodeType} matched=true"
             )
             return matchedByCode
         }
@@ -97,8 +95,7 @@ class ExpectedListBuilder(
         debugLog("ExpectedListBuilder: fallback path entered")
         val matched = findByDrugName(drug.drugName)
         debugLog(
-            "match drugCodeType=${drug.drugCodeType} drugCode=${drug.drugCode} drugName=${drug.drugName} " +
-                "matchedYj=${matched?.yjCode} matchedName=${matched?.drugName}"
+            "matchByName codeType=${drug.drugCodeType} matched=${matched != null}"
         )
         return matched
     }

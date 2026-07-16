@@ -61,7 +61,9 @@ RELEASE_KEY_PASSWORD
 workflow decodes it into a temporary file and passes the signing values to
 Gradle through environment variables.
 
-If the production signing secrets are incomplete, the workflow falls back to
-the Android debug keystore and sets `allowDebugReleaseSigning=true` so the
-public APK URL is still refreshed after app changes. Use release signing
-secrets before sharing APKs outside internal testing.
+All four production signing secrets are required. If any value is missing,
+the publish workflow fails before building or uploading an APK. The workflow
+never publishes an APK signed with the Android debug keystore.
+
+`allowDebugReleaseSigning=true` is limited to local device testing. Do not set
+it in a public distribution workflow or use the resulting APK for Google Play.
