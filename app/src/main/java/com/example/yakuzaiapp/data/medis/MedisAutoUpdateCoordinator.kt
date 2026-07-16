@@ -40,7 +40,9 @@ class MedisAutoUpdateCoordinator(
 
     private suspend fun runUpdate(force: Boolean) {
         val now = clockMillis()
-        if (!force && now - metadataStore.read().lastHomepageAccessSuccessAt < CHECK_INTERVAL_MS) {
+        val metadata = metadataStore.read()
+        val isInitialDownload = metadata.lastImportSuccessAt == 0L
+        if (!force && now - metadata.lastHomepageAccessSuccessAt < CHECK_INTERVAL_MS) {
             _state.value = MedisAutoUpdateState.Idle
             return
         }
@@ -58,18 +60,21 @@ class MedisAutoUpdateCoordinator(
             _state.value = MedisAutoUpdateState.Running(
                 phase = MedisAutoUpdateState.Phase.Checking,
                 message = "MEDIS の最新版を確認中...",
+                isInitialDownload = isInitialDownload,
             )
             val links = remoteDataSource.discoverLatestLinks()
 
             _state.value = MedisAutoUpdateState.Running(
                 phase = MedisAutoUpdateState.Phase.Downloading,
                 message = "MEDIS HOT をダウンロード中...",
+                isInitialDownload = isInitialDownload,
             )
             val hotZipBytes = remoteDataSource.download(links.hotZipUrl)
 
             _state.value = MedisAutoUpdateState.Running(
                 phase = MedisAutoUpdateState.Phase.Downloading,
                 message = "販売名ファイルをダウンロード中...",
+                isInitialDownload = isInitialDownload,
             )
             val salesBytes = remoteDataSource.download(links.salesFileUrl)
 
@@ -77,18 +82,14 @@ class MedisAutoUpdateCoordinator(
                 links = links,
                 hotZipBytes = hotZipBytes,
                 salesBytes = salesBytes,
-                onProgress = { progress -> _state.value = progress },
+                onProgress = { progress ->
+                    _state.value = progress.copy(isInitialDownload = isInitialDownload)
+                },
             )
             val completedAt = clockMillis()
             metadataStore.markHomepageAccessSuccess(completedAt)
             metadataStore.markImportSuccess(result, completedAt)
-            _state.value = MedisAutoUpdateState.Completed(
-                hotVersionDate = result.hotVersionDate,
-                salesVersionDate = result.salesVersionDate,
-                hotRecords = result.hotRecords,
-                salesRecords = result.salesRecords,
-                elapsedMs = result.elapsedMs,
-            )
+            _state.value = MedisAutoUpdateState.Idle
         } catch (e: Exception) {
             _state.value = MedisAutoUpdateState.Error(e.message ?: "データ更新に失敗しました。")
         }

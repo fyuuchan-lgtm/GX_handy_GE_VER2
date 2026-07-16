@@ -1,5 +1,6 @@
 package com.example.yakuzaiapp.ui.facility
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -7,6 +8,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -57,6 +60,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun FacilityRegistrationScreen(
     onBack: () -> Unit,
+    requiredForMedis: Boolean = false,
+    onSaved: () -> Unit = {},
     viewModel: FacilityRegistrationViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
         factory = FacilityRegistrationViewModel.Factory
     )
@@ -73,6 +78,10 @@ fun FacilityRegistrationScreen(
     val requiredMessage = stringResource(R.string.facility_required)
     val savedMessage = stringResource(R.string.facility_saved)
 
+    BackHandler(enabled = requiredForMedis) {
+        // MEDIS利用条件の確認に必要なため、登録完了までは戻れない。
+    }
+
     LaunchedEffect(facility) {
         facilityName = facility.name
         postalCode = facility.postalCode
@@ -87,11 +96,13 @@ fun FacilityRegistrationScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.facility_registration_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.scan_back)
-                        )
+                    if (!requiredForMedis) {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.scan_back)
+                            )
+                        }
                     }
                 }
             )
@@ -101,9 +112,25 @@ fun FacilityRegistrationScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(20.dp),
+                .padding(20.dp)
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            if (requiredForMedis) {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.facility_medis_required_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(stringResource(R.string.facility_medis_required_body))
+                    }
+                }
+            }
             OutlinedTextField(
                 value = facilityName,
                 onValueChange = { facilityName = it },
@@ -194,6 +221,7 @@ fun FacilityRegistrationScreen(
                             streetAddress = trimmedStreetAddress
                         )
                         message = savedMessage
+                        onSaved()
                     }
                 },
                 modifier = Modifier.fillMaxWidth()

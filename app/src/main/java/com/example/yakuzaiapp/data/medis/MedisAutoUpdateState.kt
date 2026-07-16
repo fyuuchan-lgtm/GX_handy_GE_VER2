@@ -8,6 +8,7 @@ sealed interface MedisAutoUpdateState {
         val message: String,
         val processedCount: Int = 0,
         val totalCount: Int = 0,
+        val isInitialDownload: Boolean = false,
     ) : MedisAutoUpdateState {
         val progressFraction: Float
             get() = if (totalCount > 0) {
@@ -16,14 +17,6 @@ sealed interface MedisAutoUpdateState {
                 0f
             }
     }
-
-    data class Completed(
-        val hotVersionDate: String,
-        val salesVersionDate: String,
-        val hotRecords: Int,
-        val salesRecords: Int,
-        val elapsedMs: Long,
-    ) : MedisAutoUpdateState
 
     data class Error(
         val message: String,

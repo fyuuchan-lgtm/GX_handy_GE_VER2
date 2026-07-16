@@ -56,6 +56,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -75,6 +76,7 @@ private const val TAG = "DispensingPtpScan"
 private const val PTP_ANALYSIS_WIDTH = 1280
 private const val PTP_ANALYSIS_HEIGHT = 720
 private const val PTP_ZOOM_RATIO = 2.0f
+private val PTP_CAMERA_HEIGHT = 221.dp
 
 @Composable
 fun DispensingPtpScanScreen(
@@ -152,6 +154,8 @@ fun DispensingPtpScanScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .background(Color.White)
+                    .zIndex(1f)
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -183,7 +187,9 @@ fun DispensingPtpScanScreen(
                 }
 
                 else -> PtpCameraAndDispensingList(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
                     items = session!!.items,
                     isAllChecked = isAllChecked,
                     scanEnabled = scanEnabled,
@@ -270,7 +276,8 @@ private fun PtpCameraAndDispensingList(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(0.24f)
+                .height(PTP_CAMERA_HEIGHT)
+                .background(Color(0xFF202020))
         ) {
             if (!isAllChecked) {
                 AndroidView(
@@ -307,7 +314,7 @@ private fun PtpCameraAndDispensingList(
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(0.55f)
+                .weight(1f)
                 .background(Color.White),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)
         ) {

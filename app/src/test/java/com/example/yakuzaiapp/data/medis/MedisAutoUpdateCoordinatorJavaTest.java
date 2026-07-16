@@ -37,7 +37,7 @@ public class MedisAutoUpdateCoordinatorJavaTest {
         assertEquals(1, fixture.importer.importCount);
         assertEquals("20260531", fixture.metadata.metadata.getHotVersionDate());
         assertEquals("20260615", fixture.metadata.metadata.getSalesVersionDate());
-        assertTrue(fixture.coordinator.getState().getValue() instanceof MedisAutoUpdateState.Completed);
+        assertTrue(fixture.coordinator.getState().getValue() instanceof MedisAutoUpdateState.Idle);
     }
 
     @Test

@@ -13,7 +13,13 @@ data class FacilityInfo(
     val town: String = "",
     val streetAddress: String = "",
     val address: String = ""
-)
+) {
+    val isRegistered: Boolean
+        get() = name.isNotBlank() &&
+            postalCode.isNotBlank() &&
+            prefecture.isNotBlank() &&
+            city.isNotBlank()
+}
 
 class FacilityRepository(context: Context) {
     private val preferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)

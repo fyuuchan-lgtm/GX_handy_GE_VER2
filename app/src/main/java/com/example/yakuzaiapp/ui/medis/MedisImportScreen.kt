@@ -217,22 +217,6 @@ private fun IdleView(
     }
 
     when (autoUpdateState) {
-        is MedisAutoUpdateState.Completed -> {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "データ更新完了しました",
-                fontSize = 12.sp,
-                color = Color.Gray,
-                textAlign = TextAlign.Center,
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            OutlinedButton(
-                onClick = onDismissAutoUpdateMessage,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("更新結果を閉じる")
-            }
-        }
         is MedisAutoUpdateState.Error -> {
             Spacer(modifier = Modifier.height(8.dp))
             Text(

@@ -114,6 +114,7 @@ fun AppNavigation() {
     val application = context.applicationContext as YakuzaiApplication
     val medisAutoUpdateCoordinator = application.medisAutoUpdateCoordinator
     val autoUpdateState by medisAutoUpdateCoordinator.state.collectAsState()
+    val facility by application.facilityRepository.facility.collectAsState()
     val staffList by application.database.staffMasterDao().observeAll().collectAsState(initial = emptyList())
     val selectedStaffId by application.staffSelectionRepository.selectedStaffId.collectAsState()
     val selectedStaffName = staffList.firstOrNull { it.staffId == selectedStaffId }?.greetingName()
@@ -122,6 +123,13 @@ fun AppNavigation() {
     val dispensingViewModel: DispensingViewModel = viewModel(factory = DispensingViewModel.Factory)
     val auditScanViewModel: AuditScanViewModel = viewModel(factory = AuditScanViewModel.Factory)
     fun navigateToMedisUpdate() {
+        if (!facility.isRegistered) {
+            navController.navigate(Routes.FACILITY_REGISTRATION) {
+                popUpTo(Routes.HOME) { inclusive = true }
+                launchSingleTop = true
+            }
+            return
+        }
         medisAutoUpdateCoordinator.maybeStartAutoUpdate(force = true)
         navController.navigate(Routes.MEDIS_IMPORT) {
             popUpTo(Routes.HOME) { inclusive = false }
@@ -129,6 +137,13 @@ fun AppNavigation() {
         }
     }
     fun updateMedisOnHome() {
+        if (!facility.isRegistered) {
+            navController.navigate(Routes.FACILITY_REGISTRATION) {
+                popUpTo(Routes.HOME) { inclusive = true }
+                launchSingleTop = true
+            }
+            return
+        }
         medisAutoUpdateCoordinator.maybeStartAutoUpdate(force = true)
         navController.navigate(Routes.HOME) {
             popUpTo(Routes.HOME) { inclusive = false }
@@ -180,9 +195,9 @@ fun AppNavigation() {
         }
     }
 
-    DisposableEffect(lifecycleOwner, medisAutoUpdateCoordinator) {
+    DisposableEffect(lifecycleOwner, medisAutoUpdateCoordinator, facility.isRegistered) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_START) {
+            if (event == Lifecycle.Event.ON_START && facility.isRegistered) {
                 medisAutoUpdateCoordinator.maybeStartAutoUpdate(force = false)
             }
         }
@@ -197,7 +212,14 @@ fun AppNavigation() {
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        NavHost(navController = navController, startDestination = Routes.HOME) {
+        NavHost(
+            navController = navController,
+            startDestination = if (facility.isRegistered) {
+                Routes.HOME
+            } else {
+                Routes.FACILITY_REGISTRATION
+            }
+        ) {
         composable(Routes.HOME) {
             HomeScreen(
                 selectedStaffName = selectedStaffName,
@@ -258,7 +280,20 @@ fun AppNavigation() {
             UserDrugMasterScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.FACILITY_REGISTRATION) {
-            FacilityRegistrationScreen(onBack = { navController.popBackStack() })
+            val registrationRequired = !facility.isRegistered
+            FacilityRegistrationScreen(
+                onBack = { navController.popBackStack() },
+                requiredForMedis = registrationRequired,
+                onSaved = {
+                    if (registrationRequired) {
+                        medisAutoUpdateCoordinator.maybeStartAutoUpdate(force = true)
+                        navController.navigate(Routes.HOME) {
+                            popUpTo(Routes.FACILITY_REGISTRATION) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    }
+                }
+            )
         }
         composable(Routes.USER_REGISTRATION) {
             UserRegistrationScreen(onBack = { navController.popBackStack() })
@@ -695,7 +730,11 @@ private fun AutoUpdateOverlay(
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Text(
-                            text = "データ更新中",
+                            text = if (state.isInitialDownload) {
+                                "データダウンロード中"
+                            } else {
+                                "データ更新中"
+                            },
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                         )
@@ -731,7 +770,11 @@ private fun AutoUpdateOverlay(
                             )
                         }
                         Text(
-                            text = "更新が終わるまで操作できません。",
+                            text = if (state.isInitialDownload) {
+                                "ダウンロードが終わるまで操作できません。"
+                            } else {
+                                "更新が終わるまで操作できません。"
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -757,32 +800,6 @@ private fun AutoUpdateOverlay(
                             color = MaterialTheme.colorScheme.error,
                         )
                         Text(text = state.message)
-                        Button(
-                            onClick = onDismiss,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text("閉じる")
-                        }
-                    }
-                }
-            }
-        }
-        is MedisAutoUpdateState.Completed -> {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(24.dp),
-                contentAlignment = Alignment.BottomCenter,
-            ) {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Text(
-                            text = "データ更新完了しました",
-                            fontWeight = FontWeight.Bold,
-                        )
                         Button(
                             onClick = onDismiss,
                             modifier = Modifier.fillMaxWidth(),
