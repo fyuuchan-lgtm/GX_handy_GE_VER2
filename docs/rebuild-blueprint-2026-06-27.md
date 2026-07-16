@@ -97,6 +97,7 @@ git push -u origin master
 - Android 設定: `app/build.gradle.kts`, `build.gradle.kts`, `settings.gradle.kts`, `gradle.properties`
 - 通常仕様書: `docs/spec_v0.3.md`
 - 追加仕様書: `docs/spec-camera-navigation-2026-07-06.md`
+- 利用者登録マスター仕様: `docs/user-drug-master-2026-07-16.md`
 - 復旧・再構築用仕様書: `docs/rebuild-blueprint-2026-06-27.md`
 - 重要仕様差分: `docs/spec-vs-impl-diff-2026-06-09.md`
 - JAHIS 参照資料: `docs/jahis-spec/`
@@ -155,6 +156,29 @@ git push
 - 販売名ファイルは UTF-8 / Shift_JIS を自動判定する。
 - `A_20260531_2.txt` は UTF-8 として実機確認済み。
 - 2026-07-01 時点で、MEDIS HOT と販売名・包装ファイルはアプリ起動時または取込画面から自動更新できる。
+- 2026-07-16 時点で、院内製剤・医療材料を利用者登録し、帳票候補とバーコード照合に使用できる。
+
+### 1.2 2026-07-16 追記: 院内製剤・材料の利用者登録マスター
+
+公開マスターにない品目は、ホーム右上メニューの `院内製剤・材料マスター` から登録する。
+
+実装上の重要点:
+
+- `DrugMaster.isUserRegistered` で利用者登録品を識別する
+- 利用者登録品の `hot13 / drugCode / yjCode` は `USER-<バーコード>` とする
+- GTINはGTIN-14へ正規化し、施設独自コードは3〜64文字の文字列として保持する
+- 帳票OCR候補は既存の `DrugMasterMatcher` 検索経路へ自然に含まれる
+- 帳票PTPスキャンは `normalizeMasterBarcode()` でGTINと施設独自コードを受け付ける
+- `DrugMasterRepository.findByAnyGtin()` の `drug_master` フォールバックで利用者登録品を解決する
+- MEDIS更新で利用者登録品を消さないため、`DrugMasterDao.deleteImported()` を使用する
+- Room DB version 10から11への移行で `isUserRegistered INTEGER NOT NULL DEFAULT 0` を追加する
+
+絶対に避ける退行:
+
+- MEDIS更新時に `DrugMasterDao.deleteAll()` を呼び、利用者登録品を消す
+- 施設独自コードをGTINチェックデジット必須として拒否する
+- 帳票候補とスキャン側で異なる `USER-*` コードを生成する
+- 利用者登録品を `sales_package` だけに保存し、名称検索候補から外す
 
 ### 1.1 2026-07-01 追記: MEDIS 自動更新
 
@@ -1107,6 +1131,23 @@ sqlite3 C:\Users\fyuuc\yakuzaiapp_after_import.db "SELECT gtin, gtinSales, gtinC
 - MEDIS HOT は約5万件台。
 - 販売名ファイルも約5万件台。
 - `A_20260531_2.txt` 取込ログに `charset=UTF-8` が出る。
+- 事前に登録した院内製剤・材料がMEDIS更新後も残る。
+
+### 15.1.1 利用者登録マスター
+
+1. ホーム右上メニューから `院内製剤・材料マスター` を開く。
+2. 帳票に記載される名称を入力する。
+3. GTINまたは施設独自バーコードを入力する。
+4. 必要に応じて規格・包装と区分を入力する。
+5. `マスターに登録` を押す。
+6. 登録済み一覧に表示されることを確認する。
+
+期待:
+
+- 名称による帳票監査の手動検索候補に表示される。
+- 登録バーコードを帳票PTPスキャンで読むと確認済みになる。
+- MEDIS手動更新・自動更新後も登録が残る。
+- 削除後は候補とバーコード照合から消える。
 
 ### 15.2 調剤モード
 
@@ -1133,6 +1174,17 @@ sqlite3 C:\Users\fyuuc\yakuzaiapp_after_import.db "SELECT gtin, gtinSales, gtinC
 
 - 帳票側の `DrugIdentity.yjCode` とスキャン側の YJ が一致すれば確認済みになる。
 - センノシドNIGなど、販売名ファイルのメーカー情報が日本語で表示される。
+- 院内製剤・材料は利用者登録した名称を選択でき、登録バーコードで照合できる。
+
+### 15.5 2026-07-16 実機確認
+
+- 対象端末: Pixel 4a
+- 既存の署名違いアプリをアンインストールしてdebug APKを新規インストール
+- `com.example.yakuzaiapp` のインストール成功
+- ランチャーからのアプリ起動成功
+- 利用者登録マスターの動作確認成功
+- `testDebugUnitTest`: 226件成功
+- `assembleDebug`: 成功
 
 ### 15.4 充填モード
 

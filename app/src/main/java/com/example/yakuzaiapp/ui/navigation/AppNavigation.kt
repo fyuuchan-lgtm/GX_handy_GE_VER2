@@ -62,6 +62,7 @@ import com.example.yakuzaiapp.ui.home.HomeBottomTab
 import com.example.yakuzaiapp.ui.home.HomeScreen
 import com.example.yakuzaiapp.ui.fill.FillModeScreen
 import com.example.yakuzaiapp.ui.medis.MedisImportScreen
+import com.example.yakuzaiapp.ui.master.UserDrugMasterScreen
 import com.example.yakuzaiapp.ui.privacy.PrivacyPolicyScreen
 import com.example.yakuzaiapp.ui.result.ResultScreen
 import com.example.yakuzaiapp.ui.scan.ScanScreen
@@ -82,6 +83,7 @@ object Routes {
     const val DRUG_SEARCH = "drug_search"
     const val DRUG_DETAIL = "drug_detail"
     const val MEDIS_IMPORT = "medis_import"
+    const val USER_DRUG_MASTER = "user_drug_master"
     const val DISPENSING = "dispensing"
     const val DISPENSING_PTP_SCAN = "dispensing_ptp_scan"
     const val DISPENSING_COMPLETE = "dispensing_complete"
@@ -201,6 +203,7 @@ fun AppNavigation() {
                 selectedStaffName = selectedStaffName,
                 onOpenDrugSearch = { navController.navigate(Routes.DRUG_SEARCH) },
                 onOpenMedisImport = { updateMedisOnHome() },
+                onOpenUserDrugMaster = { navController.navigate(Routes.USER_DRUG_MASTER) },
                 onOpenFacilityRegistration = { navController.navigate(Routes.FACILITY_REGISTRATION) },
                 onOpenUserRegistration = { navController.navigate(Routes.USER_REGISTRATION) },
                 onOpenFillHistory = { navController.navigate(Routes.FILL_LOG) },
@@ -250,6 +253,9 @@ fun AppNavigation() {
                     medisAutoUpdateCoordinator.clearTransientState()
                 },
             )
+        }
+        composable(Routes.USER_DRUG_MASTER) {
+            UserDrugMasterScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.FACILITY_REGISTRATION) {
             FacilityRegistrationScreen(onBack = { navController.popBackStack() })

@@ -8,6 +8,22 @@ import org.junit.Test
 
 class GtinNormalizerTest {
     @Test
+    fun normalizeMasterBarcode_keepsFacilitySpecificCode() {
+        assertEquals("INHOUSE-001", normalizeMasterBarcode(" INHOUSE-001 "))
+    }
+
+    @Test
+    fun normalizeMasterBarcode_normalizesCommercialGtin() {
+        assertEquals("04987376861687", normalizeMasterBarcode("4987376861687"))
+    }
+
+    @Test
+    fun normalizeMasterBarcode_rejectsBlankAndControlCharacters() {
+        assertNull(normalizeMasterBarcode("  "))
+        assertNull(normalizeMasterBarcode("ABC\n123"))
+    }
+
+    @Test
     fun ai01Prefixed16DigitsNormalizesTo14Digits() {
         assertEquals("04987732010087", normalizeGtin("0104987732010087"))
     }

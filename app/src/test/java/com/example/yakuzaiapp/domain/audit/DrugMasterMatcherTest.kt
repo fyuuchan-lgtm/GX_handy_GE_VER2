@@ -563,6 +563,9 @@ class DrugMasterMatcherTest {
             override suspend fun insertAll(items: List<DrugMaster>) = Unit
             override suspend fun upsertAll(items: List<DrugMaster>) = Unit
             override suspend fun deleteAll() = Unit
+            override suspend fun deleteImported() = Unit
+            override suspend fun deleteUserRegistered(hot13: String) = Unit
+            override fun observeUserRegistered(): Flow<List<DrugMaster>> = flowOf(emptyList())
             override fun observeAll(): Flow<List<DrugMaster>> = flowOf(masters)
             override fun searchByKeyword(keyword: String): Flow<List<DrugMaster>> = flowOf(masters)
             override suspend fun findByExactName(name: String): List<DrugMaster> =

@@ -18,6 +18,15 @@ interface DrugMasterDao {
     @Query("DELETE FROM drug_master")
     suspend fun deleteAll()
 
+    @Query("DELETE FROM drug_master WHERE isUserRegistered = 0")
+    suspend fun deleteImported()
+
+    @Query("DELETE FROM drug_master WHERE hot13 = :hot13 AND isUserRegistered = 1")
+    suspend fun deleteUserRegistered(hot13: String)
+
+    @Query("SELECT * FROM drug_master WHERE isUserRegistered = 1 ORDER BY drugName ASC")
+    fun observeUserRegistered(): Flow<List<DrugMaster>>
+
     @Query("SELECT * FROM drug_master ORDER BY drugName ASC")
     fun observeAll(): Flow<List<DrugMaster>>
 

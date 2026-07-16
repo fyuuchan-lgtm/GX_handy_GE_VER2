@@ -27,6 +27,25 @@ fun normalizeGtin(rawCode: String): String? {
     return candidate?.takeIf(::hasValidGtinCheckDigit)
 }
 
+/**
+ * マスター照合用のバーコードを正規化する。
+ *
+ * 市販品のGTINはGTIN-14へ正規化し、院内製剤や材料で使われる施設独自コードは
+ * 読み取った文字列をそのまま照合キーとして扱う。
+ */
+fun normalizeMasterBarcode(rawCode: String): String? {
+    normalizeGtin(rawCode)?.let { return it }
+    val value = rawCode.trim()
+    if (value.length !in 3..64 || value.any(Char::isISOControl)) return null
+
+    val digits = value.filter(Char::isDigit)
+    val looksLikeInvalidGtin = value.all { it.isDigit() || it.isWhitespace() || it == '(' || it == ')' } &&
+        (digits.length == 13 || digits.length == 14 || (digits.startsWith("01") && digits.length >= 16))
+    if (looksLikeInvalidGtin) return null
+
+    return value.takeIf { digits.isNotEmpty() }
+}
+
 private fun hasValidGtinCheckDigit(gtin: String): Boolean {
     if (gtin.isEmpty() || !gtin.all(Char::isDigit)) return false
     val checkDigit = gtin.last().digitToInt()

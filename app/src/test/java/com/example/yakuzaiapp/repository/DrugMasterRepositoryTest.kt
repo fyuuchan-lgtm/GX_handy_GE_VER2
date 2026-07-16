@@ -177,6 +177,10 @@ class DrugMasterRepositoryTest {
             override suspend fun insertAll(items: List<DrugMaster>) = Unit
             override suspend fun upsertAll(items: List<DrugMaster>) = Unit
             override suspend fun deleteAll() = Unit
+            override suspend fun deleteImported() = Unit
+            override suspend fun deleteUserRegistered(hot13: String) = Unit
+            override fun observeUserRegistered() =
+                kotlinx.coroutines.flow.flowOf(emptyList<DrugMaster>())
             override fun observeAll() = kotlinx.coroutines.flow.flowOf(emptyList<DrugMaster>())
             override fun searchByKeyword(keyword: String) = kotlinx.coroutines.flow.flowOf(emptyList<DrugMaster>())
             override suspend fun findByExactName(name: String): List<DrugMaster> = emptyList()

@@ -47,6 +47,9 @@ class DrugMasterRepository(
     suspend fun findByCaseGtin(gtin: String): DrugMaster? = drugMasterDao.findByCaseGtin(gtin)
     suspend fun count(): Int = drugMasterDao.count()
     suspend fun insertAll(items: List<DrugMaster>) = drugMasterDao.insertAll(items)
+    fun observeUserRegistered(): Flow<List<DrugMaster>> = drugMasterDao.observeUserRegistered()
+    suspend fun upsertUserRegistered(item: DrugMaster) = drugMasterDao.upsertAll(listOf(item))
+    suspend fun deleteUserRegistered(hot13: String) = drugMasterDao.deleteUserRegistered(hot13)
 
     private fun DrugMaster.matchesCode(code: String): Boolean {
         if (code.isBlank()) return false

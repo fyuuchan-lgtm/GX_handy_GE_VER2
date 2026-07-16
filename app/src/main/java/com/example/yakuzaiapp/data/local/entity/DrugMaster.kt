@@ -52,6 +52,7 @@ data class DrugMaster(
     val lastLotExpiry: String? = null,
     val medisUpdateDate: String? = null,
     val year: Int? = null,
+    val isUserRegistered: Boolean = false,
     val updatedAt: Long = System.currentTimeMillis()
 ) {
     val needsWarning: Boolean

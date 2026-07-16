@@ -34,7 +34,7 @@ import com.example.yakuzaiapp.data.local.entity.SalesPackage
         AuditDrugPreference::class,
         FillHistory::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -58,7 +58,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "yakuzaiapp.db"
                 )
-                    .addMigrations(MIGRATION_8_9, MIGRATION_9_10)
+                    .addMigrations(MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
                     .fallbackToDestructiveMigration()
                     .build()
                     .also { INSTANCE = it }
@@ -98,6 +98,14 @@ abstract class AppDatabase : RoomDatabase() {
                     SET staffLastName = staffName
                     WHERE staffLastName IS NULL AND staffName IS NOT NULL AND staffName != ''
                     """.trimIndent()
+                )
+            }
+        }
+
+        private val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE drug_master ADD COLUMN isUserRegistered INTEGER NOT NULL DEFAULT 0"
                 )
             }
         }

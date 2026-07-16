@@ -14,7 +14,7 @@ import com.example.yakuzaiapp.domain.audit.DrugIdentity
 import com.example.yakuzaiapp.domain.dispensing.ScanMatchResult
 import com.example.yakuzaiapp.repository.DrugMasterLookup
 import com.example.yakuzaiapp.repository.DrugMasterRepository
-import com.example.yakuzaiapp.util.normalizeGtin
+import com.example.yakuzaiapp.util.normalizeMasterBarcode
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -174,7 +174,7 @@ class AuditPtpScanViewModel(
     }
 
     internal fun extractGtin(raw: String): String? {
-        return normalizeGtin(raw)
+        return normalizeMasterBarcode(raw)
     }
 
     companion object {

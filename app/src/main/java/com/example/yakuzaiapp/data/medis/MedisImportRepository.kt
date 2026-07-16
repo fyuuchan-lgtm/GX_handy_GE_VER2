@@ -61,8 +61,8 @@ class MedisImportRepository(
 
             emit(Progress.Deleting)
             val dao = database.drugMasterDao()
-            dao.deleteAll()
-            Log.i(TAG, "全件削除完了")
+            dao.deleteImported()
+            Log.i(TAG, "公開マスター削除完了")
 
             val records = parseResult.records
             val totalToInsert = records.size

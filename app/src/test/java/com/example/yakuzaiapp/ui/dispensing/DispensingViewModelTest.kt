@@ -746,6 +746,10 @@ class DispensingViewModelTest {
             override suspend fun insertAll(items: List<DrugMaster>) {}
             override suspend fun upsertAll(items: List<DrugMaster>) {}
             override suspend fun deleteAll() {}
+            override suspend fun deleteImported() {}
+            override suspend fun deleteUserRegistered(hot13: String) {}
+            override fun observeUserRegistered(): kotlinx.coroutines.flow.Flow<List<DrugMaster>> =
+                kotlinx.coroutines.flow.flowOf(emptyList())
             override fun observeAll() = kotlinx.coroutines.flow.flowOf(masters.toList())
             override fun searchByKeyword(keyword: String) = kotlinx.coroutines.flow.flowOf(masters.toList())
             override suspend fun findByExactName(name: String): List<DrugMaster> =

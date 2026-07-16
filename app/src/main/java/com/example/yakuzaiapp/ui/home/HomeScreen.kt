@@ -61,6 +61,7 @@ fun HomeScreen(
     selectedStaffName: String? = null,
     onOpenDrugSearch: () -> Unit,
     onOpenMedisImport: () -> Unit,
+    onOpenUserDrugMaster: () -> Unit,
     onOpenFacilityRegistration: () -> Unit,
     onOpenUserRegistration: () -> Unit,
     onOpenFillHistory: () -> Unit,
@@ -105,6 +106,13 @@ fun HomeScreen(
                                 onClick = {
                                     menuExpanded = false
                                     onOpenMedisImport()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("院内製剤・材料マスター") },
+                                onClick = {
+                                    menuExpanded = false
+                                    onOpenUserDrugMaster()
                                 },
                             )
                             DropdownMenuItem(

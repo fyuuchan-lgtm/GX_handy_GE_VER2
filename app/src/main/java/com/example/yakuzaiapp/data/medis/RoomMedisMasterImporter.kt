@@ -58,7 +58,7 @@ class RoomMedisMasterImporter(
         database.withTransaction {
             val drugMasterDao = database.drugMasterDao()
             val salesPackageDao = database.salesPackageDao()
-            drugMasterDao.deleteAll()
+            drugMasterDao.deleteImported()
             salesPackageDao.deleteAll()
 
             var inserted = 0
