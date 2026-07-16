@@ -16,7 +16,10 @@ data class JahisPrescription(
 data class JahisRp(
     val rpNumber: Int,
     val drugs: List<JahisDrug>,
-    val usage: String?
+    val usage: String?,
+    val dispensingQuantity: String? = null,
+    val dispensingUnit: String? = null,
+    val dosageFormCode: String? = null
 )
 
 data class JahisDrug(

@@ -24,6 +24,7 @@ data class ExpectedDrugItem(
     val drugName: String,
     val quantity: String,
     val unit: String,
+    val totalQuantityDisplay: String? = null,
     val matchedYjCode: String?,
     val matchedGtin: String?,
     val matchedDrugName: String?,

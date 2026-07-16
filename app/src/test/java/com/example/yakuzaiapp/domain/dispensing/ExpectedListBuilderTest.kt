@@ -27,6 +27,36 @@ class ExpectedListBuilderTest {
     }
 
     @Test
+    fun buildsCalculatedTotalForOralPrescription() = runTest {
+        val builder = ExpectedListBuilder(
+            drugMasterDao = fakeDrugMasterDao(),
+            drugPreferenceRepository = DrugPreferenceRepository(fakeDrugPreferenceDao())
+        )
+        val drug = JahisDrug(
+            rpNumber = 1,
+            drugCodeType = DrugCodeType.YJ,
+            drugCode = null,
+            drugName = "Test Drug",
+            quantity = "3",
+            unit = "TAB"
+        )
+        val prescription = prescriptionOf(drug).copy(
+            rps = listOf(
+                JahisRp(
+                    rpNumber = 1,
+                    drugs = listOf(drug),
+                    usage = "After meals",
+                    dispensingQuantity = "7",
+                    dispensingUnit = "DAYS",
+                    dosageFormCode = "1"
+                )
+            )
+        )
+
+        assertEquals("21TAB", builder.build(prescription).items.single().totalQuantityDisplay)
+    }
+
+    @Test
     fun yjCodeMatchSetsMatchedMasterFields() = runTest {
         val builder = ExpectedListBuilder(
             drugMasterDao = fakeDrugMasterDao(

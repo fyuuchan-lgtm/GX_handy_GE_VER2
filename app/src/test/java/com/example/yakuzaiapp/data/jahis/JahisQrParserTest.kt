@@ -9,6 +9,22 @@ import org.junit.Test
 class JahisQrParserTest {
 
     @Test
+    fun parsesDispensingQuantityUnitAndDosageFormFromUsageRecord() {
+        val result = JahisQrParser.parse(
+            """
+            JAHISTC01
+            201,1,Test Drug,3,TAB,4,1234567A1010
+            301,1,After meals,7,DAYS,1,1,
+            """.trimIndent()
+        )
+
+        val rp = result.rps.single()
+        assertEquals("7", rp.dispensingQuantity)
+        assertEquals("DAYS", rp.dispensingUnit)
+        assertEquals("1", rp.dosageFormCode)
+    }
+
+    @Test
     fun detectsVersionJAHISTC01() {
         val result = JahisQrParser.parse(
             """

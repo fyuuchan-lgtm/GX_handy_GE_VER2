@@ -50,6 +50,12 @@ class ExpectedListBuilder(
                     drugName = drug.drugName,
                     quantity = drug.quantity,
                     unit = drug.unit,
+                    totalQuantityDisplay = PrescriptionQuantityCalculator.calculate(
+                        quantity = drug.quantity,
+                        unit = drug.unit,
+                        dispensingQuantity = rp.dispensingQuantity,
+                        dosageFormCode = rp.dosageFormCode
+                    ),
                     matchedYjCode = matchedYjCode,
                     matchedGtin = matchedMaster?.gtin ?: matchedMaster?.hot13,
                     matchedDrugName = matchedMaster?.drugName,

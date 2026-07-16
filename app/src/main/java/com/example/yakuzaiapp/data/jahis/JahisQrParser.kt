@@ -143,12 +143,11 @@ object JahisQrParser {
         }
         val usage = cols.getOrNull(2)?.takeIf { it.isNotBlank() }
             ?: cols.getOrNull(3)?.takeIf { it.isNotBlank() }
-        if (usage.isNullOrBlank()) {
-            warn("Skip usage record without usage text")
-            return
-        }
         val rp = rpMap.getOrPut(rpNumber) { MutableRp(rpNumber) }
         rp.usage = usage
+        rp.dispensingQuantity = cols.getOrNull(3)?.takeIf { it.isNotBlank() }
+        rp.dispensingUnit = cols.getOrNull(4)?.takeIf { it.isNotBlank() }
+        rp.dosageFormCode = cols.getOrNull(5)?.takeIf { it.isNotBlank() }
     }
 
     private fun drugFields(cols: List<String>, version: String): DrugFields {
@@ -225,12 +224,18 @@ object JahisQrParser {
     private data class MutableRp(
         val rpNumber: Int,
         val drugs: MutableList<JahisDrug> = mutableListOf(),
-        var usage: String? = null
+        var usage: String? = null,
+        var dispensingQuantity: String? = null,
+        var dispensingUnit: String? = null,
+        var dosageFormCode: String? = null
     ) {
         fun toImmutable(): JahisRp = JahisRp(
             rpNumber = rpNumber,
             drugs = drugs.toList(),
-            usage = usage
+            usage = usage,
+            dispensingQuantity = dispensingQuantity,
+            dispensingUnit = dispensingUnit,
+            dosageFormCode = dosageFormCode
         )
     }
 }

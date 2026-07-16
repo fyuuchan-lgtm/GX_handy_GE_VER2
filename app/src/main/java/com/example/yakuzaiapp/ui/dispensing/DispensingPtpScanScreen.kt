@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -421,48 +422,44 @@ private fun DispensingPtpRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(72.dp)
+            .heightIn(min = 72.dp)
             .background(rowBackground)
             .clickable(
                 enabled = canToggleExcluded,
                 onClick = onToggleExcluded
             )
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+            .padding(horizontal = 8.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(
-            modifier = Modifier.width(64.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+        Box(
+            modifier = Modifier
+                .width(54.dp)
+                .background(badgeColor, RoundedCornerShape(8.dp)),
+            contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "RP${item.rpNumber}",
-                color = contentColor,
+                text = badgeText,
+                color = Color.White,
                 fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.bodyMedium
+                fontSize = 13.sp,
+                modifier = Modifier.padding(vertical = 6.dp)
             )
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(badgeColor, RoundedCornerShape(8.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = badgeText,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp,
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
-            }
         }
         Text(
             text = item.drugName,
             color = contentColor,
             fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = item.totalQuantityDisplay ?: "${item.quantity}${item.unit}",
+            color = contentColor,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1
         )
     }
 }
