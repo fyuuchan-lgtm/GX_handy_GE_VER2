@@ -29,6 +29,23 @@ private const val PTP_MIN_BARCODE_AREA_RATIO = 0.0025f
 private val WINDOWS_31J: Charset = Charset.forName("Windows-31J")
 private val ISO_8859_1: Charset = Charsets.ISO_8859_1
 
+internal data class StructuredAppendMetadata(
+    val sequence: Int,
+    val total: Int,
+    val groupId: String,
+)
+
+internal fun structuredAppendMetadata(
+    sequenceSize: Int,
+    sequenceIndex: Int,
+    sequenceId: String?,
+): StructuredAppendMetadata? {
+    if (sequenceSize <= 1 || sequenceIndex !in 0 until sequenceSize || sequenceId.isNullOrBlank()) {
+        return null
+    }
+    return StructuredAppendMetadata(sequenceIndex, sequenceSize, sequenceId)
+}
+
 internal fun decodeJahisMlKitText(rawValue: String?, rawBytes: ByteArray?): String? {
     rawBytes?.takeIf { it.isNotEmpty() }?.let { bytes ->
         val decoded = runCatching { String(bytes, WINDOWS_31J) }.getOrNull()
@@ -82,6 +99,15 @@ class BarcodeAnalyzer(
             tryDownscale = true
         )
     }
+    private val jahisZxingReader = BarcodeReader().apply {
+        options = BarcodeReader.Options(
+            formats = setOf(BarcodeReader.Format.QR_CODE),
+            tryHarder = true,
+            tryRotate = true,
+            tryInvert = true,
+            tryDownscale = true
+        )
+    }
     private val jahisScannerOptions = BarcodeScannerOptions.Builder()
         .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
         .build()
@@ -109,7 +135,7 @@ class BarcodeAnalyzer(
     override fun analyze(image: ImageProxy) {
         when (mode) {
             ScanMode.PTP_GTIN -> analyzeWithZxing(image)
-            ScanMode.JAHIS_QR -> analyzeWithMlKitForJahis(image)
+            ScanMode.JAHIS_QR -> analyzeJahisQr(image)
         }
     }
 
@@ -330,7 +356,7 @@ class BarcodeAnalyzer(
         }
     }
 
-    private fun analyzeWithMlKitForJahis(image: ImageProxy) {
+    private fun analyzeJahisQr(image: ImageProxy) {
         val mediaImage = image.image
         if (mediaImage == null) {
             image.close()
@@ -342,6 +368,45 @@ class BarcodeAnalyzer(
         }
 
         try {
+            val zxingDetections = runCatching { jahisZxingReader.read(image) }
+                .onFailure { e -> Log.w(TAG, "ZXing JAHIS analyze failed; falling back to ML Kit", e) }
+                .getOrDefault(emptyList())
+                .asSequence()
+                .filter { it.format == BarcodeReader.Format.QR_CODE }
+                .mapNotNull { result ->
+                    val text = decodeJahisMlKitText(result.text, result.bytes)
+                        ?.takeIf { it.isNotBlank() }
+                        ?: return@mapNotNull null
+                    val structuredAppend = structuredAppendMetadata(
+                        sequenceSize = result.sequenceSize,
+                        sequenceIndex = result.sequenceIndex,
+                        sequenceId = result.sequenceId,
+                    )
+                    Log.d(
+                        TAG,
+                        "zxing-jahis qr text-len=${text.length} " +
+                            "structuredAppend=${structuredAppend != null}"
+                    )
+                    DetectedQr(
+                        text = text,
+                        left = result.position.topLeft.x,
+                        centerX = result.position.centerX(),
+                        centerY = result.position.centerY(),
+                        area = result.position.boundsArea(),
+                        saSequence = structuredAppend?.sequence,
+                        saTotal = structuredAppend?.total,
+                        saGroupId = structuredAppend?.groupId,
+                        rawBytes = result.bytes,
+                    )
+                }
+                .toList()
+            if (zxingDetections.isNotEmpty()) {
+                emitIfFresh(zxingDetections)
+                jahisProcessing.set(false)
+                image.close()
+                return
+            }
+
             val inputImage = InputImage.fromMediaImage(mediaImage, image.imageInfo.rotationDegrees)
             jahisBarcodeScanner.process(inputImage)
                 .addOnSuccessListener(mainExecutor) { barcodes ->
@@ -351,7 +416,6 @@ class BarcodeAnalyzer(
                         }
 
                         val text = decodeJahisMlKitText(barcode.rawValue, barcode.rawBytes)
-                            ?.trim()
                             ?.takeIf { it.isNotBlank() }
                             ?: return@mapNotNull null
 

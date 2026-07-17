@@ -8,17 +8,17 @@ import org.junit.Test
 class TrialAvailabilityTest {
     @Test
     fun availableBeforeExpiry() {
-        assertTrue(TrialAvailability.isAvailable(LocalDate.of(2026, 7, 30)))
+        assertTrue(TrialAvailability.isAvailable(LocalDate.of(2026, 8, 14)))
     }
 
     @Test
     fun availableOnExpiryDate() {
-        assertTrue(TrialAvailability.isAvailable(LocalDate.of(2026, 7, 31)))
+        assertTrue(TrialAvailability.isAvailable(LocalDate.of(2026, 8, 15)))
     }
 
     @Test
     fun unavailableAfterExpiryDate() {
-        assertFalse(TrialAvailability.isAvailable(LocalDate.of(2026, 8, 1)))
+        assertFalse(TrialAvailability.isAvailable(LocalDate.of(2026, 8, 16)))
     }
 
     @Test

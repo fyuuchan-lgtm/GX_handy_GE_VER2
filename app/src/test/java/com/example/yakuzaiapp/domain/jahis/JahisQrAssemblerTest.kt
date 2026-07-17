@@ -4,8 +4,58 @@ import com.example.yakuzaiapp.data.jahis.JahisQrParser
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.nio.charset.Charset
 
 class JahisQrAssemblerTest {
+    @Test
+    fun structuredAppendRawBytesAreJoinedBeforeShiftJisDecoding() {
+        val charset = Charset.forName("Windows-31J")
+        val fullText = """
+            JAHISTC01
+            1,Test User,1,20000101
+            5,20260608
+            201,1,マグミット錠330mg,3,錠,4,2344009F2031
+            301,1,1日3回朝昼夕食後,7,日分,1,1,
+        """.trimIndent() + "\r\n"
+        val bytes = fullText.toByteArray(charset)
+        val japaneseBytes = "マ".toByteArray(charset)
+        val japaneseStart = bytes.indices.first { index ->
+            index + 1 < bytes.size &&
+                bytes[index] == japaneseBytes[0] &&
+                bytes[index + 1] == japaneseBytes[1]
+        }
+        val splitAt = japaneseStart + 1
+        val firstBytes = bytes.copyOfRange(0, splitAt)
+        val secondBytes = bytes.copyOfRange(splitAt, bytes.size)
+
+        val result = JahisQrAssembler.tryAssemble(
+            listOf(
+                detected(
+                    text = String(firstBytes, charset),
+                    left = 500,
+                    saSequence = 0,
+                    saTotal = 2,
+                    saGroupId = "group-a",
+                    rawBytes = firstBytes,
+                ),
+                detected(
+                    text = String(secondBytes, charset),
+                    left = 0,
+                    saSequence = 1,
+                    saTotal = 2,
+                    saGroupId = "group-a",
+                    rawBytes = secondBytes,
+                )
+            )
+        )
+
+        assertTrue(result is AssembleResult.Success)
+        val restored = (result as AssembleResult.Success).fullText
+        assertEquals(fullText, restored)
+        val parsed = JahisQrParser.parse(restored)
+        assertEquals("マグミット錠330mg", parsed.rps.single().drugs.single().drugName)
+    }
+
     @Test
     fun twoQrSampleProducesThreeItems() {
         val frags = listOf(
@@ -607,7 +657,17 @@ class JahisQrAssemblerTest {
     private fun detected(
         text: String,
         left: Int,
-        saSequence: Int? = null
-    ): DetectedQr = DetectedQr(text = text, left = left, saSequence = saSequence)
+        saSequence: Int? = null,
+        saTotal: Int? = null,
+        saGroupId: String? = null,
+        rawBytes: ByteArray? = null,
+    ): DetectedQr = DetectedQr(
+        text = text,
+        left = left,
+        saSequence = saSequence,
+        saTotal = saTotal,
+        saGroupId = saGroupId,
+        rawBytes = rawBytes,
+    )
 }
 

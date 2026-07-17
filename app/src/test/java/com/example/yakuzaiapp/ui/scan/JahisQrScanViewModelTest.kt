@@ -62,6 +62,21 @@ class JahisQrScanViewModelTest {
     }
 
     @Test
+    fun isStructuredAppendComplete_usesExactGroupId() {
+        val fragments = listOf(
+            detected(saSequence = 0, saTotal = 2, saGroupId = "group-a"),
+            detected(saSequence = 1, saTotal = 2, saGroupId = "group-a")
+        )
+        assertTrue(isStructuredAppendComplete(fragments))
+
+        val mixedGroups = listOf(
+            detected(saSequence = 0, saTotal = 2, saGroupId = "group-a"),
+            detected(saSequence = 1, saTotal = 2, saGroupId = "group-b")
+        )
+        assertFalse(isStructuredAppendComplete(mixedGroups))
+    }
+
+    @Test
     fun isStructuredAppendComplete_returnsFalseWhenNoSaMetadata() {
         val fragments = listOf(
             detected(),
@@ -99,6 +114,36 @@ class JahisQrScanViewModelTest {
         )
         assertEquals(2, second.count)
         assertTrue(second.isComplete)
+    }
+
+    @Test
+    fun recordDetections_ignoresUnnumberedQrAfterStructuredAppendGroupStarts() {
+        val viewModel = JahisQrScanViewModel()
+        viewModel.recordDetections(
+            listOf(
+                detected(text = "part-0", saSequence = 0, saTotal = 2, saGroupId = "group-a"),
+                detected(text = "part-1", saSequence = 1, saTotal = 2, saGroupId = "group-a")
+            )
+        )
+
+        val result = viewModel.recordDetections(listOf(detected(text = "unrelated-qr")))
+
+        assertEquals(2, result.count)
+        assertTrue(result.isComplete)
+        assertEquals(listOf("part-0", "part-1"), viewModel.fragments.value.map { it.text })
+    }
+
+    @Test
+    fun recordDetections_discardsEarlierUnnumberedQrWhenStructuredGroupAppears() {
+        val viewModel = JahisQrScanViewModel()
+        viewModel.recordDetections(listOf(detected(text = "unrelated-qr")))
+
+        val result = viewModel.recordDetections(
+            listOf(detected(text = "part-0", saSequence = 0, saTotal = 2, saGroupId = "group-a"))
+        )
+
+        assertEquals(1, result.count)
+        assertEquals(listOf("part-0"), viewModel.fragments.value.map { it.text })
     }
 
     @Test
@@ -289,14 +334,16 @@ class JahisQrScanViewModelTest {
         left: Int = 0,
         saSequence: Int? = null,
         saTotal: Int? = null,
-        saParity: Int? = null
+        saParity: Int? = null,
+        saGroupId: String? = null,
     ): DetectedQr {
         return DetectedQr(
             text = text,
             left = left,
             saSequence = saSequence,
             saTotal = saTotal,
-            saParity = saParity
+            saParity = saParity,
+            saGroupId = saGroupId,
         )
     }
 }

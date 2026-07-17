@@ -9,6 +9,21 @@ import java.nio.charset.Charset
 
 class BarcodeAnalyzerTest {
     @Test
+    fun structuredAppendMetadata_acceptsCompleteSequenceMetadata() {
+        assertEquals(
+            StructuredAppendMetadata(sequence = 1, total = 3, groupId = "group-a"),
+            structuredAppendMetadata(sequenceSize = 3, sequenceIndex = 1, sequenceId = "group-a")
+        )
+    }
+
+    @Test
+    fun structuredAppendMetadata_rejectsSingleQrAndInvalidSequence() {
+        assertNull(structuredAppendMetadata(sequenceSize = 1, sequenceIndex = 0, sequenceId = null))
+        assertNull(structuredAppendMetadata(sequenceSize = 3, sequenceIndex = 3, sequenceId = "group-a"))
+        assertNull(structuredAppendMetadata(sequenceSize = 3, sequenceIndex = 1, sequenceId = ""))
+    }
+
+    @Test
     fun decodeJahisMlKitText_prefersShiftJisRawBytesOverRawValue() {
         val expected = "JAHISTC01\n1,谷川長子,1,19561116\n"
         val decoded = decodeJahisMlKitText(

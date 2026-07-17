@@ -23,13 +23,13 @@ data class RecordResult(
 
 internal fun isStructuredAppendComplete(fragments: List<DetectedQr>): Boolean {
     if (fragments.isEmpty()) return false
-    if (fragments.any { it.saSequence == null && it.saTotal == null && it.saParity == null }) return false
+    if (fragments.any { it.saSequence == null || it.saTotal == null }) return false
 
     val totals = fragments.mapNotNull { it.saTotal }.distinct()
     if (totals.size > 1) return false
 
-    val parities = fragments.mapNotNull { it.saParity }.distinct()
-    if (parities.size > 1) return false
+    val groupIds = fragments.map { it.saGroupId ?: it.saParity?.toString() }
+    if (groupIds.any { it == null } || groupIds.distinct().size > 1) return false
 
     val sequences = fragments.mapNotNull { it.saSequence }.toSet()
     if (sequences.size != fragments.count { it.saSequence != null }) return false
@@ -41,6 +41,11 @@ internal fun isStructuredAppendComplete(fragments: List<DetectedQr>): Boolean {
 
     val expectedSequences = (0 until total).toSet()
     return sequences == expectedSequences
+}
+
+private fun DetectedQr.structuredAppendGroupKey(): String? {
+    if (saSequence == null || saTotal == null) return null
+    return saGroupId ?: saParity?.toString()
 }
 
 class JahisQrScanViewModel : ViewModel() {
@@ -57,12 +62,23 @@ class JahisQrScanViewModel : ViewModel() {
         }
 
         val current = _fragments.value.toMutableList()
+        val activeGroup = current.firstNotNullOfOrNull { it.structuredAppendGroupKey() }
+        val incomingGroup = detections.firstNotNullOfOrNull { it.structuredAppendGroupKey() }
+        val selectedGroup = activeGroup ?: incomingGroup
+        if (activeGroup == null && incomingGroup != null) {
+            current.removeAll { it.structuredAppendGroupKey() == null }
+        }
+        val acceptedDetections = if (selectedGroup != null) {
+            detections.filter { it.structuredAppendGroupKey() == selectedGroup }
+        } else {
+            detections
+        }
 
         var added = 0
         var mutated = false
-        detections.forEach { detection ->
+        acceptedDetections.forEach { detection ->
             val text = detection.text
-            val saSummary = "seq=${detection.saSequence ?: "null"}/total=${detection.saTotal ?: "null"}/parity=${detection.saParity ?: "null"}"
+            val saSummary = "seq=${detection.saSequence ?: "null"}/total=${detection.saTotal ?: "null"}/group=${if (detection.saGroupId != null || detection.saParity != null) "present" else "null"}"
             if (text.isBlank()) {
                 Log.d(
                     TAG,

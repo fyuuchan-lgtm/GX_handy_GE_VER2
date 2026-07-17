@@ -2,6 +2,8 @@ package com.example.yakuzaiapp.domain.jahis
 
 import android.util.Log
 import com.example.yakuzaiapp.data.jahis.JahisQrParser
+import java.io.ByteArrayOutputStream
+import java.nio.charset.Charset
 
 data class DetectedQr(
     val text: String,
@@ -12,6 +14,8 @@ data class DetectedQr(
     val saSequence: Int? = null,
     val saTotal: Int? = null,
     val saParity: Int? = null,
+    val saGroupId: String? = null,
+    val rawBytes: ByteArray? = null,
 )
 
 sealed class AssembleResult {
@@ -36,6 +40,7 @@ enum class IncompleteReason {
 object JahisQrAssembler {
     private val RECORD_START_PATTERN = Regex("^(JAHISTC\\d{2}|\\d+,)")
     private val RP_RECORD_PATTERN = Regex("""(?m)^(201|301),(\d+),""")
+    private val WINDOWS_31J: Charset = Charset.forName("Windows-31J")
 
     fun tryAssemble(qrs: List<DetectedQr>): AssembleResult {
         val filtered = qrs
@@ -43,9 +48,17 @@ object JahisQrAssembler {
             .filter { it.text.isNotBlank() }
             .distinctBy { "${it.left}:${it.text}" }
             .toList()
-        val (headers, others) = filtered.partition { hasSupportedHeader(it.text) }
-        val ordered = headers.sortedBy { it.fragmentOrderKey() } +
-            others.sortedBy { it.fragmentOrderKey() }
+        val structuredAppend = filtered.all {
+            it.saSequence != null && it.saTotal != null && it.rawBytes != null
+        }
+        val ordered = if (structuredAppend) {
+            filtered.sortedBy { it.saSequence }
+        } else {
+            val (headers, others) = filtered.partition { hasSupportedHeader(it.text) }
+            headers.sortedBy { it.fragmentOrderKey() } +
+                others.sortedBy { it.fragmentOrderKey() }
+        }
+        val headers = ordered.filter { hasSupportedHeader(it.text) }
 
         if (ordered.isEmpty()) {
             return AssembleResult.NoHeader
@@ -99,6 +112,14 @@ object JahisQrAssembler {
     }
 
     private fun buildFullText(ordered: List<DetectedQr>): String {
+        if (ordered.isNotEmpty() && ordered.all { it.rawBytes != null && it.saSequence != null }) {
+            val output = ByteArrayOutputStream()
+            ordered.sortedBy { it.saSequence }.forEach { fragment ->
+                output.write(fragment.rawBytes!!)
+            }
+            return String(output.toByteArray(), WINDOWS_31J)
+        }
+
         val sb = StringBuilder()
         ordered.forEachIndexed { index, fragment ->
             if (index > 0) {
