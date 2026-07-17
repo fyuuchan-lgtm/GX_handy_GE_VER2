@@ -178,6 +178,36 @@
       text-align: center;
     }
 
+    .install-card {
+      margin: 0;
+      padding: 20px;
+      border: 2px solid var(--blue);
+      border-radius: 12px;
+      background: var(--white);
+      text-align: center;
+    }
+
+    .install-card img {
+      width: min(100%, 280px);
+      display: block;
+      margin: 0 auto 10px;
+    }
+
+    .install-card figcaption {
+      color: var(--blue);
+      font-weight: 900;
+    }
+
+    .install-url {
+      display: block;
+      margin-top: 12px;
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.45;
+      overflow-wrap: anywhere;
+    }
+
     .mode-grid {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -247,14 +277,78 @@
     }
 
     @media print {
+      @page {
+        size: A4;
+        margin: 12mm;
+      }
+
+      body {
+        font-size: 10pt;
+        line-height: 1.55;
+      }
+
       header {
         background: #ffffff;
         color: var(--ink);
         border-bottom: 2px solid var(--line);
+        padding: 12mm 0 9mm;
+      }
+
+      main,
+      .header-inner {
+        width: 100%;
+      }
+
+      h1 {
+        font-size: 28pt;
+      }
+
+      h2 {
+        font-size: 22pt;
+      }
+
+      h3.subsection-title {
+        font-size: 18pt;
       }
 
       section {
+        padding: 8mm 0;
         break-inside: avoid;
+      }
+
+      section + section {
+        break-before: page;
+      }
+
+      .two-column {
+        grid-template-columns: minmax(0, 1fr) 58mm;
+        gap: 8mm;
+      }
+
+      .screen {
+        padding: 2mm;
+      }
+
+      .screen img {
+        max-height: 205mm;
+        object-fit: contain;
+      }
+
+      .install-card {
+        padding: 5mm;
+      }
+
+      .install-card img {
+        width: 50mm;
+      }
+
+      .notice {
+        margin: 4mm 0;
+        padding: 3mm 4mm;
+      }
+
+      footer {
+        padding: 8mm 0;
       }
     }
   </style>
@@ -264,7 +358,7 @@
     <div class="header-inner">
       <h1>ヤクピタ 一般向け説明書</h1>
       <p class="subtitle">薬局の調剤確認・帳票監査・充填確認をスマホカメラで支えるアプリです。</p>
-      <p class="meta">更新日: 2026年7月16日 / 画面は開発中の実機画面を含みます。</p>
+      <p class="meta">更新日: 2026年7月17日 / 画面は開発中の実機画面を含みます。</p>
     </div>
   </header>
 
@@ -289,7 +383,29 @@
     </section>
 
     <section>
-      <h2>2. 初回起動時の施設登録</h2>
+      <div class="two-column">
+        <div>
+          <h2>2. アプリをインストールする</h2>
+          <p>右のQRコードをAndroid端末のカメラで読み取り、最新版のヤクピタをダウンロードします。</p>
+          <ol>
+            <li>Android端末のカメラでQRコードを読み取ります。</li>
+            <li>表示されたリンクを開き、APKファイルをダウンロードします。</li>
+            <li>ダウンロードしたファイルを開き、「インストール」をタップします。</li>
+            <li>確認画面が表示された場合は、この配布元からのアプリのインストールを許可します。</li>
+            <li>インストール完了後、「開く」をタップします。</li>
+          </ol>
+          <div class="notice">ダウンロードにはインターネット接続が必要です。本QRコードはAndroid端末用です。</div>
+        </div>
+        <figure class="install-card">
+          <img src="assets/install-apk-qr.png" alt="ヤクピタ最新版APKのダウンロードQRコード">
+          <figcaption>最新版ヤクピタ<br>ダウンロードQRコード</figcaption>
+          <a class="install-url" href="https://raw.githubusercontent.com/fyuuchan-lgtm/GX_handy_GE_VER2/master/docs/landing/yakupita/downloads/yakupita-latest.apk">ダウンロードURLを開く</a>
+        </figure>
+      </div>
+    </section>
+
+    <section>
+      <h2>3. 初回起動時の施設登録</h2>
       <p>本アプリでは、薬品名やバーコードの確認に「MEDIS標準マスター」という医薬品データを使用します。このデータは医療機関であれば無償で利用できるため、医療機関での利用確認として初回起動時に施設情報を登録します。</p>
       <ol>
         <li>初回起動時に施設登録画面が表示されます。</li>
@@ -303,7 +419,7 @@
     </section>
 
     <section>
-      <h2>3. MEDISマスターの自動・手動更新</h2>
+      <h2>4. MEDISマスターの自動・手動更新</h2>
       <p>初回ダウンロード後は、MEDISマスターの最新版を7日間隔で自動確認し、必要なデータを更新します。</p>
       <ol>
         <li>通常はホーム画面を使用しているときに自動で更新を確認するため、操作は不要です。</li>
@@ -317,7 +433,7 @@
     <section>
       <div class="two-column">
         <div>
-          <h2>4. ホーム画面</h2>
+          <h2>5. ホーム画面</h2>
           <p>アプリを開くと、ホーム画面に主要な3つのモードが表示されます。使いたい作業のカードをタップします。</p>
           <ul class="check-list">
             <li><span class="label">調剤モード</span>薬剤情報提供書のQRコードから調剤確認を始めます。</li>
@@ -340,7 +456,7 @@
     </section>
 
     <section>
-      <h2>5. 利用者登録と利用者選択</h2>
+      <h2>6. 利用者登録と利用者選択</h2>
       <p>充填モードなどで作業者を記録するため、最初に利用者を登録し、作業する人を選択します。</p>
       <ol>
         <li>ホーム画面右上のメニューを開き、「利用者登録」をタップします。</li>
@@ -355,7 +471,7 @@
     <section>
       <div class="two-column">
         <div>
-          <h2>6. 調剤モードの使い方</h2>
+          <h2>7. 調剤モードの使い方</h2>
           <p>調剤モードは、薬剤情報提供書のQRコードを読み取り、ピッキング時の確認に使います。</p>
           <ol>
             <li>ホーム画面で「調剤モード」をタップします。</li>
@@ -375,7 +491,7 @@
     <section>
       <div class="two-column">
         <div>
-          <h3 class="subsection-title">6.1 QRコード読取後の操作</h3>
+          <h3 class="subsection-title">7.1 QRコード読取後の操作</h3>
           <p>処方内容を確認したら「PTP確認」をタップし、薬品のピッキングと照合を始めます。</p>
           <ol>
             <li>画面上部の患者情報が薬剤情報提供書と一致しているか確認します。</li>
@@ -396,7 +512,7 @@
     <section>
       <div class="two-column">
         <div>
-          <h3 class="subsection-title">6.2 PTP確認画面でピッキングする</h3>
+          <h3 class="subsection-title">7.2 PTP確認画面でピッキングする</h3>
           <p>ピッキングした薬品のPTPシートまたは箱にあるGS1コードを、画面上部の白い枠内に映して照合します。</p>
           <ol>
             <li>薬品を1品ずつピッキングし、PTPシートまたは箱のGS1コードをカメラに映します。</li>
@@ -417,7 +533,7 @@
     </section>
 
     <section>
-      <h2>7. 帳票監査モードの使い方</h2>
+      <h2>8. 帳票監査モードの使い方</h2>
       <p>帳票監査モードは、取り揃え表などを撮影し、OCRで薬品名を読み取って監査リストを作ります。</p>
       <ol>
         <li>ホーム画面で「帳票監査モード」をタップします。</li>
@@ -432,7 +548,7 @@
     </section>
 
     <section>
-      <h2>8. 院内製剤・材料を登録する</h2>
+      <h2>9. 院内製剤・材料を登録する</h2>
       <p>MEDISの薬品マスターにない院内製剤や医療材料も、利用者登録マスターへ追加すると帳票監査でピッキングできます。</p>
       <ol>
         <li>ホーム画面右上のメニューを開きます。</li>
@@ -448,7 +564,7 @@
     <section>
       <div class="two-column">
         <div>
-          <h2>9. 充填モードの使い方</h2>
+          <h2>10. 充填モードの使い方</h2>
           <p>充填モードは、薬品と充填先のカセット・瓶が合っているかを確認するための2段階読み取りです。</p>
           <ol>
             <li>下部タブまたはホーム画面から「充填モード」を開きます。</li>
@@ -470,7 +586,7 @@
     </section>
 
     <section>
-      <h3 class="subsection-title">9.1 充填ログを確認する</h3>
+      <h3 class="subsection-title">10.1 充填ログを確認する</h3>
       <p>充填が完了すると作業内容が記録され、あとから充填した薬品や実施者を確認できます。</p>
       <ol>
         <li>ホーム画面右上のメニューを開きます。</li>
@@ -483,7 +599,7 @@
     </section>
 
     <section>
-      <h2>10. プライバシーポリシーを確認する</h2>
+      <h2>11. プライバシーポリシーを確認する</h2>
       <p>本アプリが取り扱う情報、保存場所、外部サービスへの通信、データの削除方法などをアプリ内で確認できます。</p>
       <ol>
         <li>ホーム画面右上のメニューを開きます。</li>
@@ -500,7 +616,7 @@
     </section>
 
     <section>
-      <h2>11. 困ったとき</h2>
+      <h2>12. 困ったとき</h2>
       <ul class="check-list">
         <li><span class="label">カメラが映らない</span>カメラ権限が許可されているか確認してください。</li>
         <li><span class="label">読み取れない</span>コード全体を明るい場所で画面中央に入れ、少し離してピントを合わせてください。</li>
