@@ -378,21 +378,21 @@ GTIN正規化では以下を扱う。
 
 #### 検出パイプライン（Phase B-6 以降）
 
-JAHIS QR の検出は ML Kit BarcodeScanning に一本化されている。
+JAHIS QR は zxing-cpp を優先し、検出できない場合のみ ML Kit BarcodeScanning にフォールバックする。
 
 - 1 フレーム内の複数 QR を独立して検出する
-- 各 QR は `barcode.rawBytes` から Shift_JIS (Windows-31J) デコードする
-- ZXing 経路は JAHIS QR では使用しない（PTP/GTIN モードでは継続利用）
-- ZXing の `QRCodeMultiReader` 連結による fragment 重複問題は Phase B-6 で解消した
+- zxing-cpp から Structured Append の順序・総数・グループIDと生バイト列を取得する
+- Structured Append がある場合は順序どおりに生バイト列を連結してから Windows-31J で一度だけデコードする
+- zxing-cpp が検出できない単独QRや従来形式は ML Kit で処理する
 
 #### フラグメント蓄積と結合
 
 `JahisQrScanViewModel` で fragments を蓄積する。
 
 - 同一 key（テキスト一致）の fragment は重複排除する
-- ヘッダ断片（`JAHISTC` で始まる）を先頭に固定する
-- 残りは `cornerPoints[0].x` の left 座標昇順で結合する
-- auto-debounce は Structured Append メタデータの有無に関係なく一定時間後に発火する
+- Structured Append がある場合は同じグループだけを受け付け、順序番号の欠落がない時点で解析可能とする
+- Structured Append 読み取り開始前の番号なしQRは破棄し、開始後に映り込んだ無関係なQRも無視する
+- Structured Append がない場合は、ヘッダと画面上の left 座標を使う従来フォールバックを残す
 
 #### 対応フォーマット
 
