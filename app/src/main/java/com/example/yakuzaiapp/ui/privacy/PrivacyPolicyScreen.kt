@@ -22,8 +22,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
-private const val OPERATOR_NAME = "PRIVACY_RELEASE_REQUIRED: 公開者の正式名称を設定してください"
-private const val PRIVACY_CONTACT = "PRIVACY_RELEASE_REQUIRED: 問い合わせ先メールアドレスを設定してください"
+private const val OPERATOR_NAME = "横田学"
+private const val PRIVACY_CONTACT = "fyuuchan@gmail.com"
 private const val PRIVACY_POLICY_VERSION = "PRIVACY_POLICY_VERSION=2026-07-15"
 
 @OptIn(ExperimentalMaterial3Api::class)

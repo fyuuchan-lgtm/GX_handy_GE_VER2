@@ -236,6 +236,23 @@ private fun AuditCameraContent(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Button(
+                        onClick = onBack,
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = PrimaryButtonBlue,
+                            contentColor = Color.White
+                        ),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(54.dp)
+                    ) {
+                        Text(
+                            stringResource(R.string.scan_back),
+                            style = MaterialTheme.typography.headlineSmall.copy(fontSize = 24.sp),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Button(
                         onClick = {
                             captureAndRunOcr(
                                 imageCapture = imageCapture,
@@ -255,23 +272,6 @@ private fun AuditCameraContent(
                     ) {
                         Text(
                             stringResource(R.string.audit_capture_button),
-                            style = MaterialTheme.typography.headlineSmall.copy(fontSize = 24.sp),
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    Button(
-                        onClick = onBack,
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = PrimaryButtonBlue,
-                            contentColor = Color.White
-                        ),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(54.dp)
-                    ) {
-                        Text(
-                            stringResource(R.string.scan_back),
                             style = MaterialTheme.typography.headlineSmall.copy(fontSize = 24.sp),
                             fontWeight = FontWeight.Bold
                         )

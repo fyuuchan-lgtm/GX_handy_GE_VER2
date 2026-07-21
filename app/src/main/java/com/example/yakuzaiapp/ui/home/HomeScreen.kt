@@ -138,7 +138,7 @@ fun HomeScreen(
                                 },
                             )
                             DropdownMenuItem(
-                                text = { Text("設定") },
+                                text = { Text("帳票監査モード設定") },
                                 onClick = {
                                     menuExpanded = false
                                     onOpenSettings()
