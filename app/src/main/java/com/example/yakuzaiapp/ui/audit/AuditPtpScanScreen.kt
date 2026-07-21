@@ -1,4 +1,4 @@
-package com.example.yakuzaiapp.ui.audit
+﻿package com.example.yakuzaiapp.ui.audit
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -21,8 +21,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -92,10 +94,8 @@ fun AuditPtpScanScreen(
     val context = LocalContext.current
     val auditResults by auditViewModel.matchResults.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val confirmedDrugs = remember(auditResults) {
-        auditResults
-            .filter { it.status == com.example.yakuzaiapp.domain.audit.MatchStatus.CONFIRMED }
-            .mapNotNull { it.candidates.singleOrNull() }
+    val confirmedResults = remember(auditResults) {
+        auditResults.filter { it.status == com.example.yakuzaiapp.domain.audit.MatchStatus.CONFIRMED }
     }
     val hasCameraPermission = remember {
         mutableStateOf(
@@ -114,9 +114,9 @@ fun AuditPtpScanScreen(
             permissionLauncher.launch(Manifest.permission.CAMERA)
         }
     }
-    LaunchedEffect(confirmedDrugs) {
-        if (confirmedDrugs.isNotEmpty()) {
-            viewModel.initializeFromAudit(confirmedDrugs)
+    LaunchedEffect(confirmedResults) {
+        if (confirmedResults.isNotEmpty()) {
+            viewModel.initializeFromAudit(confirmedResults)
         }
     }
     LaunchedEffect(viewModel) {
@@ -443,25 +443,21 @@ private fun PtpScanRowCard(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(72.dp)
+            .heightIn(min = 72.dp)
             .border(1.dp, borderColor, RectangleShape)
             .background(Color.White)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+            .padding(horizontal = 8.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(
-            modifier = Modifier.width(64.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+        Box(
+            modifier = Modifier.width(42.dp),
+            contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = " ",
-                fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.bodyMedium
-            )
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .width(42.dp)
+                    .height(28.dp)
                     .background(badgeColor, RoundedCornerShape(8.dp)),
                 contentAlignment = Alignment.Center
             ) {
@@ -469,20 +465,23 @@ private fun PtpScanRowCard(
                     text = badgeText,
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(vertical = 4.dp)
+                    style = MaterialTheme.typography.bodyMedium
                 )
             }
         }
         Text(
-            text = listOfNotNull(
-                row.displayName.takeIf { it.isNotBlank() },
-                row.packageSpec?.takeIf { it.isNotBlank() }
-            ).joinToString("　"),
+            text = row.displayName,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.weight(1f),
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis
+        )
+        Text(
+            text = row.quantityDisplay.orEmpty(),
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.widthIn(min = 44.dp)
         )
     }
 }

@@ -175,7 +175,66 @@ class DocumentOcrParserTest {
         )
     }
 
-    private fun block(text: String): OcrBlockForParsing {
-        return OcrBlockForParsing(text = text, bounds = null)
+    @Test
+    fun parseBlocks_assignsRightColumnQuantitiesToTheirMatchingRows() {
+        val result = DocumentOcrParser.parseBlocks(
+            listOf(
+                block("デエビゴ錠5mg", left = 40, top = 100, right = 360, bottom = 140),
+                block("2錠", left = 820, top = 102, right = 880, bottom = 140),
+                block("ロキソプロフェン錠60mg", left = 40, top = 180, right = 420, bottom = 220),
+                block("1錠", left = 820, top = 182, right = 880, bottom = 220)
+            )
+        )
+
+        assertEquals(listOf("2錠", "1錠"), result.map { it.quantityText })
+        assertEquals(
+            listOf(
+                listOf("デエビゴ錠5mg", "2錠"),
+                listOf("ロキソプロフェン錠60mg", "1錠")
+            ),
+            result.map { it.sourceLines }
+        )
+    }
+
+    @Test
+    fun parseBlocks_doesNotAssignQuantityFromAnotherTableRow() {
+        val result = DocumentOcrParser.parseBlocks(
+            listOf(
+                block("デエビゴ錠5mg", left = 40, top = 100, right = 360, bottom = 140),
+                block("2錠", left = 820, top = 260, right = 880, bottom = 300)
+            )
+        )
+
+        assertEquals(1, result.size)
+        assertEquals(null, result.single().quantityText)
+    }
+
+    @Test
+    fun parseBlocks_omitsQuantitiesWhenDisabled() {
+        val result = DocumentOcrParser.parseBlocks(
+            listOf(
+                block("デエビゴ錠5mg", left = 40, top = 100, right = 360, bottom = 140),
+                block("2錠", left = 820, top = 102, right = 880, bottom = 140)
+            ),
+            includeQuantity = false
+        )
+
+        assertEquals(listOf("デエビゴ錠5mg"), result.map { it.name })
+        assertEquals(listOf(null), result.map { it.quantityText })
+    }
+
+    private fun block(
+        text: String,
+        left: Int? = null,
+        top: Int? = null,
+        right: Int? = null,
+        bottom: Int? = null
+    ): OcrBlockForParsing {
+        val bounds = if (left != null && top != null && right != null && bottom != null) {
+            OcrBounds(left, top, right, bottom)
+        } else {
+            null
+        }
+        return OcrBlockForParsing(text = text, bounds = bounds)
     }
 }

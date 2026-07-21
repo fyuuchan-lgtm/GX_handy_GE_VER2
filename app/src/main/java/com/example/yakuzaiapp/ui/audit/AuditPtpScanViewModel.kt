@@ -1,4 +1,4 @@
-package com.example.yakuzaiapp.ui.audit
+﻿package com.example.yakuzaiapp.ui.audit
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
@@ -11,6 +11,7 @@ import com.example.yakuzaiapp.data.local.dao.DrugMasterDao
 import com.example.yakuzaiapp.data.local.dao.SalesPackageDao
 import com.example.yakuzaiapp.data.local.entity.DrugMaster
 import com.example.yakuzaiapp.domain.audit.DrugIdentity
+import com.example.yakuzaiapp.domain.audit.MatchResult
 import com.example.yakuzaiapp.domain.dispensing.ScanMatchResult
 import com.example.yakuzaiapp.repository.DrugMasterLookup
 import com.example.yakuzaiapp.repository.DrugMasterRepository
@@ -34,10 +35,16 @@ class AuditPtpScanViewModel(
         salesPackageDao: SalesPackageDao
     ) : this(DrugMasterRepository(drugMasterDao, salesPackageDao))
 
+    data class AuditDrugSeed(
+        val drug: DrugIdentity,
+        val quantityText: String?
+    )
+
     data class PtpScanRow(
         val yjCode: String,
         val displayName: String,
         val packageSpec: String?,
+        val quantityDisplay: String?,
         val dosageForm: String?,
         val scanned: Boolean = false,
         val scannedGtin: String? = null,
@@ -56,23 +63,42 @@ class AuditPtpScanViewModel(
     val scanFeedback: SharedFlow<ScanMatchResult> = _scanFeedback.asSharedFlow()
     private var initializedSignature: String? = null
 
-    fun initializeFromAudit(confirmedDrugs: List<DrugIdentity>) {
-        val signature = confirmedDrugs.joinToString("|") { "${it.yjCode}:${it.displayName}" }
+    fun initializeFromAudit(confirmedResults: List<MatchResult>) {
+        val signature = confirmedResults.joinToString("|") {
+            "${it.candidates.singleOrNull()?.yjCode.orEmpty()}:${it.ocrName}:${it.quantityText.orEmpty()}"
+        }
         if (_uiState.value.rows.isNotEmpty() && initializedSignature == signature) return
 
         initializedSignature = signature
         _uiState.value = UiState(
-            rows = confirmedDrugs.map { drug ->
+            rows = confirmedResults.mapNotNull { result ->
+                val drug = result.candidates.singleOrNull() ?: return@mapNotNull null
                 PtpScanRow(
                     yjCode = drug.yjCode,
                     displayName = drug.displayName,
                     packageSpec = drug.packageSpec,
+                    quantityDisplay = result.quantityText,
                     dosageForm = drug.dosageForm
                 )
             },
             lastMessage = null,
             isComplete = false
         )
+    }
+
+    fun initializeFromAudit(
+        confirmedDrugs: List<DrugIdentity>,
+        quantityTexts: List<String?> = emptyList()
+    ) {
+        val confirmedResults = confirmedDrugs.mapIndexed { index, drug ->
+            MatchResult(
+                ocrName = drug.displayName,
+                quantityText = quantityTexts.getOrNull(index),
+                candidates = listOf(drug),
+                status = com.example.yakuzaiapp.domain.audit.MatchStatus.CONFIRMED
+            )
+        }
+        initializeFromAudit(confirmedResults)
     }
 
     fun onBarcodeScanned(rawBarcode: String) {

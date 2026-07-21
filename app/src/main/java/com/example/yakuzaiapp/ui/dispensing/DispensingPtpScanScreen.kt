@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
@@ -441,7 +442,7 @@ private fun DispensingPtpRow(
     ) {
         Box(
             modifier = Modifier
-                .width(54.dp)
+                .width(42.dp)
                 .background(badgeColor, RoundedCornerShape(8.dp)),
             contentAlignment = Alignment.Center
         ) {
@@ -449,24 +450,29 @@ private fun DispensingPtpRow(
                 text = badgeText,
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
-                fontSize = 13.sp,
-                modifier = Modifier.padding(vertical = 6.dp)
+                fontSize = 12.sp,
+                modifier = Modifier.padding(vertical = 4.dp)
             )
         }
-        Text(
-            text = item.drugName,
-            color = contentColor,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
-        )
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = item.drugName,
+                color = contentColor,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
         Text(
             text = item.totalQuantityDisplay ?: "${item.quantity}${item.unit}",
             color = contentColor,
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.Bold,
-            maxLines = 1
+            maxLines = 1,
+            modifier = Modifier.widthIn(min = 44.dp)
         )
     }
 }

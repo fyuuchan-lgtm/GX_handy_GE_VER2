@@ -68,6 +68,7 @@ import com.example.yakuzaiapp.ui.result.ResultScreen
 import com.example.yakuzaiapp.ui.scan.ScanScreen
 import com.example.yakuzaiapp.ui.search.DrugDetailScreen
 import com.example.yakuzaiapp.ui.search.DrugSearchScreen
+import com.example.yakuzaiapp.ui.settings.AuditSettingsScreen
 import com.example.yakuzaiapp.ui.staff.UserRegistrationScreen
 import com.example.yakuzaiapp.ui.staff.UserSelectionScreen
 import com.example.yakuzaiapp.util.SoundFeedback
@@ -230,6 +231,7 @@ fun AppNavigation() {
                 onOpenUserRegistration = { navController.navigate(Routes.USER_REGISTRATION) },
                 onOpenFillHistory = { navController.navigate(Routes.FILL_LOG) },
                 onOpenPrivacyPolicy = { navController.navigate(Routes.PRIVACY_POLICY) },
+                onOpenSettings = { navController.navigate(Routes.SETTINGS) },
                 onOpenUserSelection = { navigateToUserSelection() },
                 onOpenFillMode = {
                     Log.d(TAG, "home -> fill_mode")
@@ -672,10 +674,9 @@ fun AppNavigation() {
             )
         }
         composable(Routes.SETTINGS) {
-            PlaceholderScreen(
-                title = "設定",
-                message = "ここに設定画面を実装する。",
-                onBack = { navController.popBackStack() },
+            AuditSettingsScreen(
+                settingsRepository = application.auditSettingsRepository,
+                onBack = { navController.popBackStack() }
             )
         }
         composable(Routes.PRIVACY_POLICY) {

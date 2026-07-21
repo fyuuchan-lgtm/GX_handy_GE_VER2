@@ -66,6 +66,7 @@ fun HomeScreen(
     onOpenUserRegistration: () -> Unit,
     onOpenFillHistory: () -> Unit,
     onOpenPrivacyPolicy: () -> Unit,
+    onOpenSettings: () -> Unit = {},
     onOpenUserSelection: () -> Unit,
     onOpenFillMode: () -> Unit,
     onOpenDispensing: () -> Unit,
@@ -134,6 +135,13 @@ fun HomeScreen(
                                 onClick = {
                                     menuExpanded = false
                                     onOpenFillHistory()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("設定") },
+                                onClick = {
+                                    menuExpanded = false
+                                    onOpenSettings()
                                 },
                             )
                             DropdownMenuItem(

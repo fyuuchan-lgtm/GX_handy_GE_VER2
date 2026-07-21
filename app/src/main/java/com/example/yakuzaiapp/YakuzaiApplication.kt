@@ -8,6 +8,7 @@ import com.example.yakuzaiapp.data.medis.MedisAutoUpdateCoordinator
 import com.example.yakuzaiapp.data.medis.RoomMedisMasterImporter
 import com.example.yakuzaiapp.data.medis.SharedPreferencesMedisUpdateMetadataStore
 import com.example.yakuzaiapp.data.repository.DrugPreferenceRepository
+import com.example.yakuzaiapp.data.repository.AuditSettingsRepository
 import com.example.yakuzaiapp.data.repository.FacilityRepository
 import com.example.yakuzaiapp.data.repository.StaffSelectionRepository
 import com.example.yakuzaiapp.repository.DrugMasterRepository
@@ -22,6 +23,7 @@ class YakuzaiApplication : Application() {
         )
     }
     val drugPreferenceRepository by lazy { DrugPreferenceRepository(database.drugPreferenceDao()) }
+    val auditSettingsRepository by lazy { AuditSettingsRepository(this) }
     val facilityRepository by lazy { FacilityRepository(this) }
     val staffSelectionRepository by lazy { StaffSelectionRepository(this) }
     val medisAutoUpdateCoordinator by lazy {

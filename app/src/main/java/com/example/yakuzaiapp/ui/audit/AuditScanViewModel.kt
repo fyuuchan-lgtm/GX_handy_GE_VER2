@@ -13,6 +13,7 @@ import com.example.yakuzaiapp.domain.audit.DrugIdentity
 import com.example.yakuzaiapp.domain.audit.DrugMasterMatcher
 import com.example.yakuzaiapp.domain.audit.MatchResult
 import com.example.yakuzaiapp.domain.audit.MatchStatus
+import com.example.yakuzaiapp.data.repository.AuditSettingsRepository
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
@@ -28,17 +29,17 @@ import kotlinx.coroutines.launch
 private const val TAG = "AuditOcr"
 
 class AuditScanViewModel(
-    private val matcher: DrugMasterMatcher
+    private val matcher: DrugMasterMatcher,
+    private val recognizer: OcrRecognizer = MlKitOcrRecognizer,
+    private val auditSettingsRepository: AuditSettingsRepository? = null
 ) : ViewModel() {
-    private val recognizer = TextRecognition.getClient(
-        JapaneseTextRecognizerOptions.Builder().build()
-    )
     private val _isProcessing = MutableStateFlow(false)
     val isProcessing: StateFlow<Boolean> = _isProcessing.asStateFlow()
     private val _detectedLines = MutableStateFlow<List<DetectedDrugLine>>(emptyList())
     val detectedLines: StateFlow<List<DetectedDrugLine>> = _detectedLines.asStateFlow()
     private val _matchResults = MutableStateFlow<List<MatchResult>>(emptyList())
     val matchResults: StateFlow<List<MatchResult>> = _matchResults.asStateFlow()
+    private val _baseMatchResults = MutableStateFlow<List<MatchResult>>(emptyList())
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
     private val _ocrCompletedEvents = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
@@ -59,9 +60,17 @@ class AuditScanViewModel(
                 logOcrResult(result)
                 viewModelScope.launch {
                     try {
-                        val lines = DocumentOcrParser.parse(result)
+                        val lines = DocumentOcrParser.parse(
+                            text = result,
+                            includeQuantity = auditSettingsRepository
+                                ?.readQuantityFromDocument
+                                ?.value
+                                ?: true
+                        )
                         _detectedLines.value = lines
-                        _matchResults.value = matcher.matchAll(lines)
+                        val matched = matcher.matchAll(lines)
+                        _baseMatchResults.value = matched
+                        _matchResults.value = matched
                         _errorMessage.value = null
                         _ocrCompletedEvents.tryEmit(Unit)
                     } catch (e: Throwable) {
@@ -88,6 +97,12 @@ class AuditScanViewModel(
     fun clearResult() {
         _detectedLines.value = emptyList()
         _matchResults.value = emptyList()
+        _baseMatchResults.value = emptyList()
+    }
+
+    internal fun seedResultsForTest(results: List<MatchResult>) {
+        _baseMatchResults.value = results
+        _matchResults.value = results
     }
 
     fun selectCandidate(index: Int, identity: DrugIdentity) {
@@ -130,11 +145,25 @@ class AuditScanViewModel(
     fun clearLearning(index: Int) {
         viewModelScope.launch {
             val result = _matchResults.value.getOrNull(index) ?: return@launch
-            matcher.clearLearning(result)
-            val rematched = matcher.match(result.ocrName, result.quantityText)
-            _matchResults.update { current ->
-                current.mapIndexed { itemIndex, item ->
-                    if (itemIndex == index) rematched else item
+            val baseResult = _baseMatchResults.value.getOrNull(index)
+            if (result.learnedFromPreference) {
+                matcher.clearLearning(result)
+                val rematched = matcher.match(result.ocrName, result.quantityText)
+                _baseMatchResults.update { current ->
+                    current.mapIndexed { itemIndex, item ->
+                        if (itemIndex == index) rematched else item
+                    }
+                }
+                _matchResults.update { current ->
+                    current.mapIndexed { itemIndex, item ->
+                        if (itemIndex == index) rematched else item
+                    }
+                }
+            } else if (baseResult != null) {
+                _matchResults.update { current ->
+                    current.mapIndexed { itemIndex, item ->
+                        if (itemIndex == index) baseResult else item
+                    }
                 }
             }
         }
@@ -178,9 +207,29 @@ class AuditScanViewModel(
                     matcher = DrugMasterMatcher(
                         drugMasterDao = app.database.drugMasterDao(),
                         preferenceDao = app.database.auditDrugPreferenceDao()
-                    )
+                    ),
+                    auditSettingsRepository = app.auditSettingsRepository
                 )
             }
         }
+    }
+}
+
+interface OcrRecognizer {
+    fun process(image: InputImage): com.google.android.gms.tasks.Task<Text>
+    fun close()
+}
+
+private object MlKitOcrRecognizer : OcrRecognizer {
+    private val delegate = TextRecognition.getClient(
+        JapaneseTextRecognizerOptions.Builder().build()
+    )
+
+    override fun process(image: InputImage): com.google.android.gms.tasks.Task<Text> {
+        return delegate.process(image)
+    }
+
+    override fun close() {
+        delegate.close()
     }
 }

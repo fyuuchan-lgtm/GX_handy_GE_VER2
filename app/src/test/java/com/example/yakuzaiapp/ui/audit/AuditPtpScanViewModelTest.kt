@@ -56,6 +56,17 @@ class AuditPtpScanViewModelTest {
     }
 
     @Test
+    fun initializeFromAudit_leavesQuantityBlankWhenOcrDidNotReadIt() {
+        val viewModel = AuditPtpScanViewModel(fakeDrugDao(), fakeSalesPackageDao())
+
+        viewModel.initializeFromAudit(
+            listOf(DrugIdentity("YJ123", "デエビゴ錠5mg", "5mg1錠", "錠"))
+        )
+
+        assertNull(viewModel.uiState.value.rows.single().quantityDisplay)
+    }
+
+    @Test
     fun onBarcodeScanned_marksMatchingAuditRowOnce_and_ignoresDuplicates() = runTest {
         val master = drugMaster(
             hot13 = "hot-1",
