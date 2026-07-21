@@ -7,7 +7,8 @@ private const val TAG = "AuditParser"
 
 data class DetectedDrugLine(
     val name: String,
-    val sourceLines: List<String>
+    val sourceLines: List<String>,
+    val quantityText: String? = null
 )
 
 data class OcrBlockForParsing(
@@ -93,6 +94,31 @@ object DocumentOcrParser {
     private val dateTimePattern = Regex(
         """([0-9０-９]{1,2}月[0-9０-９]{1,2}日|[0-9０-９]{1,2}:[0-9０-９]{2})"""
     )
+    private val quantityUnits = listOf(
+        "錠",
+        "カプセル",
+        "包",
+        "本",
+        "個",
+        "枚",
+        "シート",
+        "袋",
+        "瓶",
+        "管",
+        "筒",
+        "アンプル",
+        "バイアル",
+        "キット",
+        "セット",
+        "束",
+        "巻",
+        "回"
+    )
+    private val quantityUnitPattern = quantityUnits.joinToString("|") { Regex.escape(it) }
+    private val quantityPattern = Regex(
+        """[ 　]*([0-9０-９]+(?:[.．][0-9０-９]+)?)\s*($quantityUnitPattern)$""",
+        RegexOption.IGNORE_CASE
+    )
 
     fun parse(text: Text): List<DetectedDrugLine> {
         val lines = text.textBlocks.flatMap { block -> block.lines }.map { line ->
@@ -118,7 +144,7 @@ object DocumentOcrParser {
     private fun parseLines(lines: List<OcrBlockForParsing>): List<DetectedDrugLine> {
         val result = lines
             .mapNotNull { line -> parseLine(line.text) }
-            .distinctBy { it.name }
+            .distinctBy { "${it.name}|${it.quantityText.orEmpty()}" }
 
         Log.d(TAG, "detected drug names=${result.size}")
         return result
@@ -128,12 +154,27 @@ object DocumentOcrParser {
         val text = rawText.trim()
         if (text.isBlank()) return null
         if (shouldExclude(text)) return null
-        if (!isDrugNameCandidate(text)) return null
+        val (normalizedName, quantityText) = extractDrugNameAndQuantity(text)
+        if (!isDrugNameCandidate(normalizedName)) return null
 
         return DetectedDrugLine(
-            name = text,
+            name = normalizedName,
+            quantityText = quantityText,
             sourceLines = listOf(text)
         )
+    }
+
+    private fun extractDrugNameAndQuantity(text: String): Pair<String, String?> {
+        val match = quantityPattern.find(text)
+        if (match == null) {
+            return text to null
+        }
+
+        val number = toHalfWidthDigits(match.groupValues[1].trim())
+        val unit = match.groupValues[2]
+        val quantityText = "$number$unit"
+        val name = text.substring(0, match.range.first).trim()
+        return name to quantityText
     }
 
     private fun shouldExclude(text: String): Boolean {
@@ -165,5 +206,14 @@ object DocumentOcrParser {
             .replace(Regex("""[\s（）()「」『』【】\[\]・･,，.．]+"""), "")
             .trim()
         return drugNamePart.length >= 2
+    }
+
+    private fun toHalfWidthDigits(input: String): String {
+        return input.map { ch ->
+            when (ch) {
+                in '０'..'９' -> ('0' + (ch - '０'))
+                else -> ch
+            }
+        }.joinToString("")
     }
 }

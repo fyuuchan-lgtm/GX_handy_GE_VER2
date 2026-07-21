@@ -69,6 +69,7 @@
     <string name="audit_retake">&#x518D;&#x64AE;&#x5F71;</string>
     <string name="audit_proceed_ptp">PTP&#x30B9;&#x30AD;&#x30E3;&#x30F3;</string>
     <string name="audit_no_drugs_detected">&#x85AC;&#x54C1;&#x304C;&#x691C;&#x51FA;&#x3055;&#x308C;&#x307E;&#x305B;&#x3093;&#x3067;&#x3057;&#x305F;</string>
+    <string name="audit_quantity">&#x6570;&#x91CF;&#xFF1A;%1$s</string>
     <string name="audit_detected_count">%d件の薬品を検出</string>
     <string name="audit_processing">&#x89E3;&#x6790;&#x4E2D;...</string>
     <string name="audit_ptp_not_implemented">PTP&#x30B9;&#x30AD;&#x30E3;&#x30F3;&#x7A81;&#x5408;&#x306F;&#x672A;&#x5B9F;&#x88C5;&#x3067;&#x3059;</string>

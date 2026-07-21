@@ -12,6 +12,7 @@ private const val TAG = "AuditMatcher"
 
 data class MatchResult(
     val ocrName: String,
+    val quantityText: String? = null,
     val candidates: List<DrugIdentity>,
     val status: MatchStatus,
     val matchKey: String? = null,
@@ -106,7 +107,10 @@ class DrugMasterMatcher(
     )
     private val parenPattern = Regex("""[（(]([^）)]+)[）)]""")
 
-    suspend fun match(ocrName: String): MatchResult {
+    suspend fun match(
+        ocrName: String,
+        quantityText: String? = null
+    ): MatchResult {
         val components = extractCore(ocrName)
         val spec = extractSpec(ocrName)
         Log.d(
@@ -123,29 +127,29 @@ class DrugMasterMatcher(
         val exactHits = gatherCandidates(searchTerms)
             .filter { normalize(it.drugName) == normalize(ocrName) }
         Log.d(TAG, "stage=exact hits=${exactHits.size}")
-        if (exactHits.isNotEmpty()) return finalizeResult(ocrName, exactHits, components, spec)
+        if (exactHits.isNotEmpty()) return finalizeResult(ocrName, exactHits, components, spec, quantityText)
 
         val coreHits = gatherCandidates(listOfNotNull(components.core.takeIf { it.length >= 2 }))
         val coreSpecDosageHits = coreHits
             .filterBySpec(spec)
             .filterByDosageForm(components.dosageForm, "core+spec+dosage")
-        if (coreSpecDosageHits.isNotEmpty()) return finalizeResult(ocrName, coreSpecDosageHits, components, spec)
+        if (coreSpecDosageHits.isNotEmpty()) return finalizeResult(ocrName, coreSpecDosageHits, components, spec, quantityText)
 
         val coreSpecHits = coreHits.filterBySpec(spec)
         Log.d(TAG, "stage=core+spec hits=${coreSpecHits.size}")
-        if (coreSpecHits.isNotEmpty()) return finalizeResult(ocrName, coreSpecHits, components, spec)
+        if (coreSpecHits.isNotEmpty()) return finalizeResult(ocrName, coreSpecHits, components, spec, quantityText)
 
         val coreDosageHits = coreHits.filterByDosageForm(components.dosageForm, "core+dosage")
-        if (coreDosageHits.isNotEmpty()) return finalizeResult(ocrName, coreDosageHits, components, spec)
+        if (coreDosageHits.isNotEmpty()) return finalizeResult(ocrName, coreDosageHits, components, spec, quantityText)
 
         Log.d(TAG, "stage=core hits=${coreHits.size}")
-        if (coreHits.isNotEmpty()) return finalizeResult(ocrName, coreHits, components, spec)
+        if (coreHits.isNotEmpty()) return finalizeResult(ocrName, coreHits, components, spec, quantityText)
 
         val aliasHits = gatherCandidates(listOfNotNull(components.parenAlias?.takeIf { it.length >= 2 }))
         val aliasSpecDosageHits = aliasHits
             .filterBySpec(spec)
             .filterByDosageForm(components.dosageForm, "alias+spec+dosage")
-        if (aliasSpecDosageHits.isNotEmpty()) return finalizeResult(ocrName, aliasSpecDosageHits, components, spec)
+        if (aliasSpecDosageHits.isNotEmpty()) return finalizeResult(ocrName, aliasSpecDosageHits, components, spec, quantityText)
 
         val fuzzyHits = if (components.core.length >= 3) {
             drugMasterDao.findAllForLevenshtein()
@@ -160,11 +164,11 @@ class DrugMasterMatcher(
         }
         Log.d(TAG, "stage=fuzzy hits=${fuzzyHits.size}")
 
-        return finalizeResult(ocrName, fuzzyHits, components, spec)
+        return finalizeResult(ocrName, fuzzyHits, components, spec, quantityText)
     }
 
     suspend fun matchAll(lines: List<DetectedDrugLine>): List<MatchResult> {
-        return lines.map { line -> match(line.name) }
+        return lines.map { line -> match(line.name, line.quantityText) }
     }
 
     suspend fun searchCandidates(keyword: String): List<DrugIdentity> {
@@ -283,10 +287,11 @@ class DrugMasterMatcher(
         ocrName: String,
         candidates: List<DrugMaster>,
         components: NameComponents,
-        spec: Spec?
+        spec: Spec?,
+        quantityText: String?
     ): MatchResult {
         val matchKey = buildMatchKey(components.core, components.dosageForm, spec)
-        val base = result(ocrName, candidates, matchKey)
+        val base = result(ocrName, candidates, matchKey, quantityText)
         if (base.status != MatchStatus.AMBIGUOUS) return base
 
         val pref = preferenceDao?.findByMatchKey(matchKey) ?: return base
@@ -299,7 +304,12 @@ class DrugMasterMatcher(
         )
     }
 
-    private fun result(ocrName: String, candidates: List<DrugMaster>, matchKey: String): MatchResult {
+    private fun result(
+        ocrName: String,
+        candidates: List<DrugMaster>,
+        matchKey: String,
+        quantityText: String?
+    ): MatchResult {
         val identities = candidates.toIdentities(preferredTerms = listOf(ocrName, matchKey))
         val status = when (identities.size) {
             0 -> MatchStatus.NOT_FOUND
@@ -312,6 +322,7 @@ class DrugMasterMatcher(
         )
         return MatchResult(
             ocrName = ocrName,
+            quantityText = quantityText,
             candidates = identities,
             status = status,
             matchKey = matchKey

@@ -102,7 +102,7 @@ class AuditScanViewModel(
                         item.copy(
                             candidates = listOf(identity),
                             status = MatchStatus.CONFIRMED,
-                            learnedFromPreference = false
+                            learnedFromPreference = true
                         )
                     } else {
                         item
@@ -131,7 +131,7 @@ class AuditScanViewModel(
         viewModelScope.launch {
             val result = _matchResults.value.getOrNull(index) ?: return@launch
             matcher.clearLearning(result)
-            val rematched = matcher.match(result.ocrName)
+            val rematched = matcher.match(result.ocrName, result.quantityText)
             _matchResults.update { current ->
                 current.mapIndexed { itemIndex, item ->
                     if (itemIndex == index) rematched else item

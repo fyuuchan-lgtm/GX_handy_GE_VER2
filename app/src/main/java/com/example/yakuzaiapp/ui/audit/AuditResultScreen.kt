@@ -241,6 +241,14 @@ private fun MatchResultCard(
                 )
                 StatusChip(result = result)
             }
+            result.quantityText?.let { quantity ->
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = stringResource(R.string.audit_quantity, quantity),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             if (result.learnedFromPreference) {
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
