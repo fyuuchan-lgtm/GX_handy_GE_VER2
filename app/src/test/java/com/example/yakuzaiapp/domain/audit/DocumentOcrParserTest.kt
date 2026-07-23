@@ -197,6 +197,54 @@ class DocumentOcrParserTest {
     }
 
     @Test
+    fun parseBlocks_assignsQuantitiesWhenTheTableIsRotated() {
+        val result = DocumentOcrParser.parseBlocks(
+            listOf(
+                block("デエビゴ錠5mg", left = 60, top = 80, right = 300, bottom = 120),
+                block("ロキソプロフェン錠60mg", left = 380, top = 80, right = 640, bottom = 120),
+                block("2錠", left = 140, top = 420, right = 220, bottom = 460),
+                block("1錠", left = 470, top = 420, right = 550, bottom = 460)
+            )
+        )
+
+        assertEquals(listOf("1錠", "2錠"), result.map { it.quantityText })
+    }
+
+    @Test
+    fun parseBlocks_combinesSeparatedNumberAndUnitForQuantity() {
+        val result = DocumentOcrParser.parseBlocks(
+            listOf(
+                block("デエビゴ錠5mg", left = 40, top = 100, right = 360, bottom = 140),
+                block("2", left = 820, top = 102, right = 850, bottom = 140),
+                block("錠", left = 862, top = 102, right = 902, bottom = 140)
+            )
+        )
+
+        assertEquals(listOf("2錠"), result.map { it.quantityText })
+        assertEquals(listOf("デエビゴ錠5mg", "2錠"), result.single().sourceLines)
+    }
+
+    @Test
+    fun parseBlocks_ordersRotatedTableFromTopToBottom() {
+        val result = DocumentOcrParser.parseBlocks(
+            listOf(
+                block("ブロチゾラム錠0.25mg", left = 100, top = 80, right = 340, bottom = 120),
+                block("1錠", left = 170, top = 420, right = 230, bottom = 460),
+                block("デエビゴ錠5mg", left = 380, top = 80, right = 620, bottom = 120),
+                block("1錠", left = 450, top = 420, right = 510, bottom = 460),
+                block("センノシド錠12mg", left = 660, top = 80, right = 900, bottom = 120),
+                block("5錠", left = 730, top = 420, right = 790, bottom = 460)
+            )
+        )
+
+        assertEquals(
+            listOf("センノシド錠12mg", "デエビゴ錠5mg", "ブロチゾラム錠0.25mg"),
+            result.map { it.name }
+        )
+        assertEquals(listOf("5錠", "1錠", "1錠"), result.map { it.quantityText })
+    }
+
+    @Test
     fun parseBlocks_doesNotAssignQuantityFromAnotherTableRow() {
         val result = DocumentOcrParser.parseBlocks(
             listOf(

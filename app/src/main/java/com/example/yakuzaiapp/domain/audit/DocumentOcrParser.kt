@@ -33,6 +33,11 @@ private data class QuantityColumnValue(
     val bounds: OcrBounds?
 )
 
+private data class QuantityFragment(
+    val text: String,
+    val bounds: OcrBounds?
+)
+
 private fun android.graphics.Rect.toOcrBounds(): OcrBounds {
     return OcrBounds(
         left = left,
@@ -129,6 +134,10 @@ object DocumentOcrParser {
         """[ 　]*([0-9０-９]+(?:[.．][0-9０-９]+)?)\s*($quantityUnitPattern)$""",
         RegexOption.IGNORE_CASE
     )
+    private val quantityUnitOnlyPattern = Regex(
+        """^(?:$quantityUnitPattern)$""",
+        RegexOption.IGNORE_CASE
+    )
 
     fun parse(text: Text, includeQuantity: Boolean = true): List<DetectedDrugLine> {
         val lines = text.textBlocks.flatMap { block -> block.lines }.map { line ->
@@ -161,10 +170,25 @@ object DocumentOcrParser {
     ): List<DetectedDrugLine> {
         val detectedDrugs = mutableListOf<DrugLineWithBounds>()
         val quantityColumns = mutableListOf<QuantityColumnValue>()
+        val numericFragments = mutableListOf<QuantityFragment>()
+        val unitFragments = mutableListOf<QuantityFragment>()
 
         for (line in lines) {
             val text = line.text.trim()
             if (text.isBlank()) continue
+
+            val compactText = text.replace(Regex("""\s+"""), "")
+            if (pureNumberPattern.matches(compactText)) {
+                numericFragments += QuantityFragment(
+                    text = toHalfWidthDigits(compactText),
+                    bounds = line.bounds
+                )
+                continue
+            }
+            if (quantityUnitOnlyPattern.matches(compactText)) {
+                unitFragments += QuantityFragment(text = compactText, bounds = line.bounds)
+                continue
+            }
 
             val quantityOnlyText = extractQuantityOnlyText(text)
             if (includeQuantity && quantityOnlyText != null) {
@@ -178,8 +202,14 @@ object DocumentOcrParser {
             }
         }
 
-        val result = attachQuantities(detectedDrugs, quantityColumns)
-            .distinctBy { "${it.name}|${it.quantityText.orEmpty()}" }
+        quantityColumns += combineQuantityFragments(numericFragments, unitFragments)
+
+        val attachedDrugs = attachQuantities(detectedDrugs, quantityColumns)
+        val result = orderDetectedDrugs(
+            drugs = detectedDrugs,
+            attachedDrugs = attachedDrugs,
+            quantities = quantityColumns
+        ).distinctBy { "${it.name}|${it.quantityText.orEmpty()}" }
 
         Log.d(TAG, "detected drug names=${result.size}")
         return result
@@ -218,38 +248,137 @@ object DocumentOcrParser {
     private fun extractQuantityOnlyText(text: String): String? {
         val compact = text.replace(Regex("""\s+"""), "")
         if (!quantityOnlyPattern.matches(compact)) return null
-        return compact
+        val match = quantityPattern.matchEntire(compact) ?: return null
+        return "${toHalfWidthDigits(match.groupValues[1])}${match.groupValues[2]}"
+    }
+
+    private fun combineQuantityFragments(
+        numericFragments: List<QuantityFragment>,
+        unitFragments: List<QuantityFragment>
+    ): List<QuantityColumnValue> {
+        val unusedUnitIndexes = unitFragments.indices.toMutableSet()
+        return numericFragments.mapNotNull { number ->
+            val unitIndex = unusedUnitIndexes
+                .mapNotNull { index ->
+                    val unit = unitFragments[index]
+                    if (isQuantityFragmentPair(number.bounds, unit.bounds)) {
+                        index to fragmentDistance(number.bounds, unit.bounds)
+                    } else {
+                        null
+                    }
+                }
+                .minWithOrNull(compareBy<Pair<Int, Int>> { it.second }.thenBy { it.first })
+                ?.first
+                ?: return@mapNotNull null
+            unusedUnitIndexes -= unitIndex
+            val unit = unitFragments[unitIndex]
+            QuantityColumnValue(
+                text = number.text + unit.text,
+                bounds = number.bounds?.union(unit.bounds)
+            )
+        }
     }
 
     private fun attachQuantities(
         drugs: List<DrugLineWithBounds>,
         quantities: List<QuantityColumnValue>
     ): List<DetectedDrugLine> {
-        val unusedQuantityIndexes = quantities.indices.toMutableSet()
-        return drugs.map { detectedDrug ->
-            val drug = detectedDrug.line
-            if (drug.quantityText != null) return@map drug
+        val candidatePairs = drugs.indices.flatMap { drugIndex ->
+            val drug = drugs[drugIndex]
+            if (drug.line.quantityText != null) return@flatMap emptyList()
 
-            val quantityIndex = unusedQuantityIndexes
-                .mapNotNull { index ->
-                    val quantity = quantities[index]
-                    if (isQuantityForDrugRow(detectedDrug.bounds, quantity.bounds)) {
-                        index to verticalDistance(detectedDrug.bounds, quantity.bounds)
-                    } else {
-                        null
-                    }
+            quantities.indices.mapNotNull { quantityIndex ->
+                val quantity = quantities[quantityIndex]
+                val rowDistance = if (isQuantityForDrugRow(drug.bounds, quantity.bounds)) {
+                    verticalDistance(drug.bounds, quantity.bounds)
+                } else {
+                    null
                 }
-                .minWithOrNull(compareBy<Pair<Int, Int>> { it.second }.thenBy { quantities[it.first].bounds!!.left })
-                ?.first
-                ?: return@map drug
+                val columnDistance = if (isQuantityForDrugColumn(drug.bounds, quantity.bounds)) {
+                    horizontalDistance(drug.bounds, quantity.bounds)
+                } else {
+                    null
+                }
+                val distance = listOfNotNull(rowDistance, columnDistance).minOrNull() ?: return@mapNotNull null
+                QuantityCandidatePair(drugIndex, quantityIndex, distance)
+            }
+        }
+        val bestQuantityForDrug = candidatePairs
+            .groupBy { it.drugIndex }
+            .mapNotNull { (drugIndex, pairs) ->
+                pairs.uniqueNearest()?.let { drugIndex to it.quantityIndex }
+            }
+            .toMap()
+        val bestDrugForQuantity = candidatePairs
+            .groupBy { it.quantityIndex }
+            .mapNotNull { (quantityIndex, pairs) ->
+                pairs.uniqueNearest()?.let { quantityIndex to it.drugIndex }
+            }
+            .toMap()
+        val matchedQuantityByDrug = bestQuantityForDrug
+            .filter { (drugIndex, quantityIndex) -> bestDrugForQuantity[quantityIndex] == drugIndex }
 
-            unusedQuantityIndexes -= quantityIndex
+        return drugs.mapIndexed { drugIndex, detectedDrug ->
+            val drug = detectedDrug.line
+            if (drug.quantityText != null) return@mapIndexed drug
+            val quantityIndex = matchedQuantityByDrug[drugIndex] ?: return@mapIndexed drug
             val quantity = quantities[quantityIndex]
             drug.copy(
                 quantityText = quantity.text,
                 sourceLines = drug.sourceLines + quantity.text
             )
         }
+    }
+
+    private fun orderDetectedDrugs(
+        drugs: List<DrugLineWithBounds>,
+        attachedDrugs: List<DetectedDrugLine>,
+        quantities: List<QuantityColumnValue>
+    ): List<DetectedDrugLine> {
+        val columnOffsets = drugs.flatMap { drug ->
+            quantities.mapNotNull { quantity ->
+                if (isQuantityForDrugColumn(drug.bounds, quantity.bounds) &&
+                    !isQuantityForDrugRow(drug.bounds, quantity.bounds)
+                ) {
+                    quantity.bounds!!.centerY() - drug.bounds!!.centerY()
+                } else {
+                    null
+                }
+            }
+        }
+        val indexed = attachedDrugs.indices.toList()
+        val sortedIndexes = if (columnOffsets.isNotEmpty()) {
+            val quantityIsBelowDrug = columnOffsets.average() > 0
+            indexed.sortedWith { first, second ->
+                val firstX = drugs[first].bounds?.centerX() ?: Int.MAX_VALUE
+                val secondX = drugs[second].bounds?.centerX() ?: Int.MAX_VALUE
+                if (quantityIsBelowDrug) secondX.compareTo(firstX) else firstX.compareTo(secondX)
+            }
+        } else {
+            indexed.sortedWith { first, second ->
+                val firstBounds = drugs[first].bounds
+                val secondBounds = drugs[second].bounds
+                val vertical = (firstBounds?.centerY() ?: Int.MAX_VALUE)
+                    .compareTo(secondBounds?.centerY() ?: Int.MAX_VALUE)
+                if (vertical != 0) vertical else {
+                    (firstBounds?.centerX() ?: Int.MAX_VALUE)
+                        .compareTo(secondBounds?.centerX() ?: Int.MAX_VALUE)
+                }
+            }
+        }
+        return sortedIndexes.map { attachedDrugs[it] }
+    }
+
+    private data class QuantityCandidatePair(
+        val drugIndex: Int,
+        val quantityIndex: Int,
+        val distance: Int
+    )
+
+    private fun List<QuantityCandidatePair>.uniqueNearest(): QuantityCandidatePair? {
+        val minimumDistance = minOfOrNull { it.distance } ?: return null
+        val nearest = filter { it.distance == minimumDistance }
+        return nearest.singleOrNull()
     }
 
     private fun isQuantityForDrugRow(drugBounds: OcrBounds?, quantityBounds: OcrBounds?): Boolean {
@@ -261,14 +390,74 @@ object DocumentOcrParser {
         return verticalDistance(drugBounds, quantityBounds) <= maximumVerticalDistance
     }
 
+    private fun isQuantityForDrugColumn(drugBounds: OcrBounds?, quantityBounds: OcrBounds?): Boolean {
+        drugBounds ?: return false
+        quantityBounds ?: return false
+        val isAboveOrBelow = quantityBounds.bottom <= drugBounds.top || quantityBounds.top >= drugBounds.bottom
+        if (!isAboveOrBelow) return false
+
+        val maximumHorizontalDistance = maxOf(drugBounds.width(), quantityBounds.width(), 24)
+        return horizontalDistance(drugBounds, quantityBounds) <= maximumHorizontalDistance
+    }
+
     private fun verticalDistance(first: OcrBounds?, second: OcrBounds?): Int {
         if (first == null || second == null) return Int.MAX_VALUE
         return kotlin.math.abs(first.centerY() - second.centerY())
     }
 
+    private fun horizontalDistance(first: OcrBounds?, second: OcrBounds?): Int {
+        if (first == null || second == null) return Int.MAX_VALUE
+        return kotlin.math.abs(first.centerX() - second.centerX())
+    }
+
     private fun OcrBounds.centerY(): Int = (top + bottom) / 2
 
+    private fun OcrBounds.centerX(): Int = (left + right) / 2
+
     private fun OcrBounds.height(): Int = bottom - top
+
+    private fun OcrBounds.width(): Int = right - left
+
+    private fun OcrBounds.union(other: OcrBounds?): OcrBounds {
+        other ?: return this
+        return OcrBounds(
+            left = minOf(left, other.left),
+            top = minOf(top, other.top),
+            right = maxOf(right, other.right),
+            bottom = maxOf(bottom, other.bottom)
+        )
+    }
+
+    private fun isQuantityFragmentPair(numberBounds: OcrBounds?, unitBounds: OcrBounds?): Boolean {
+        numberBounds ?: return false
+        unitBounds ?: return false
+        val maximumGap = maxOf(
+            numberBounds.width(),
+            numberBounds.height(),
+            unitBounds.width(),
+            unitBounds.height(),
+            24
+        ) * 2
+        val sameRow = verticalDistance(numberBounds, unitBounds) <= maximumGap &&
+            horizontalGap(numberBounds, unitBounds) <= maximumGap
+        val sameColumn = horizontalDistance(numberBounds, unitBounds) <= maximumGap &&
+            verticalGap(numberBounds, unitBounds) <= maximumGap
+        return sameRow || sameColumn
+    }
+
+    private fun fragmentDistance(first: OcrBounds?, second: OcrBounds?): Int {
+        return horizontalGap(first, second) + verticalGap(first, second)
+    }
+
+    private fun horizontalGap(first: OcrBounds?, second: OcrBounds?): Int {
+        if (first == null || second == null) return Int.MAX_VALUE
+        return maxOf(0, maxOf(first.left, second.left) - minOf(first.right, second.right))
+    }
+
+    private fun verticalGap(first: OcrBounds?, second: OcrBounds?): Int {
+        if (first == null || second == null) return Int.MAX_VALUE
+        return maxOf(0, maxOf(first.top, second.top) - minOf(first.bottom, second.bottom))
+    }
 
     private fun shouldExclude(text: String, bounds: OcrBounds?): Boolean {
         val compact = text.replace(Regex("""\s+"""), "")

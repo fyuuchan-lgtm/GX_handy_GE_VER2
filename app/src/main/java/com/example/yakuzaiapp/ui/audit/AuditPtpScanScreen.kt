@@ -75,6 +75,7 @@ import com.example.yakuzaiapp.util.focusCameraOnPreviewCenter
 import java.util.concurrent.Executors
 
 private const val TAG = "AuditPtpScanScreen"
+private const val PTP_ZOOM_RATIO = 2.0f
 private val PrimaryButtonBlue = Color(0xFF002466)
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -236,6 +237,15 @@ private fun PtpCameraAndList(
                 latestOnBarcodeDetected(detection.text)
             }
         }
+    }
+
+    LaunchedEffect(activeCamera) {
+        runCatching {
+            activeCamera?.cameraControl?.setZoomRatio(PTP_ZOOM_RATIO)
+        }.onFailure { e ->
+            Log.w(TAG, "Failed to apply PTP zoom", e)
+        }
+        focusCameraOnPreviewCenter(activeCamera, previewView, TAG)
     }
 
     Column(
@@ -410,6 +420,7 @@ private fun PtpCameraAndList(
                         analysis
                     )
                     cameraProvider = provider
+                    activeCamera?.cameraControl?.setZoomRatio(PTP_ZOOM_RATIO)
                     focusCameraOnPreviewCenter(activeCamera, previewView, TAG)
                 } catch (e: Throwable) {
                     Log.w(TAG, "Camera binding failure for audit ptp scan", e)
