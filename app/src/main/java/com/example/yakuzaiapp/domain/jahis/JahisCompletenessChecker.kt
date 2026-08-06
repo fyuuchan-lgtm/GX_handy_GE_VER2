@@ -108,13 +108,9 @@ object JahisCompletenessChecker {
             cols.size >= 7 &&
                 !cols.getOrNull(2).isNullOrBlank() &&
                 !cols.getOrNull(3).isNullOrBlank() &&
-                !cols.getOrNull(4).isNullOrBlank() &&
-                !cols.getOrNull(5).isNullOrBlank() &&
-                !cols.getOrNull(6).isNullOrBlank()
+                !cols.getOrNull(4).isNullOrBlank()
         } else {
             cols.size >= 10 &&
-                !cols.getOrNull(4).isNullOrBlank() &&
-                !cols.getOrNull(5).isNullOrBlank() &&
                 !cols.getOrNull(6).isNullOrBlank() &&
                 !cols.getOrNull(7).isNullOrBlank() &&
                 !(cols.getOrNull(9).isNullOrBlank() && cols.getOrNull(8).isNullOrBlank())

@@ -25,6 +25,21 @@ class JahisCompletenessCheckerTest {
     }
 
     @Test
+    fun tc01CompleteWhenDrugCodeFieldsAreBlank() {
+        val result = JahisCompletenessChecker.check(
+            """
+            JAHISTC01
+            201,1,Drug A,1,錠,,
+            301,1,1日1回朝食後,7,日分,1,1,
+            """.trimIndent()
+        )
+
+        assertTrue(result is CheckResult.Complete)
+        assertEquals(setOf(1), result.drugRpNumbers)
+        assertEquals(setOf(1), result.usageRpNumbers)
+    }
+
+    @Test
     fun detectsMissingRpNumber() {
         val result = JahisCompletenessChecker.check(
             """
@@ -79,6 +94,21 @@ class JahisCompletenessCheckerTest {
             """
             JAHISTC02,1
             201,1,1,1,4,1111111111111,Drug A,1,,錠
+            301,1,1日1回朝食後,7,日分,1,1,
+            """.trimIndent()
+        )
+
+        assertTrue(result is CheckResult.Complete)
+        assertEquals(setOf(1), result.drugRpNumbers)
+        assertEquals(setOf(1), result.usageRpNumbers)
+    }
+
+    @Test
+    fun tc02CompleteWhenDrugCodeFieldsAreBlank() {
+        val result = JahisCompletenessChecker.check(
+            """
+            JAHISTC02,1
+            201,1,1,1,,,Drug A,1,,錠
             301,1,1日1回朝食後,7,日分,1,1,
             """.trimIndent()
         )
