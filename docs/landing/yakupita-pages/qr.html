@@ -55,10 +55,10 @@
     <h1>QRコード</h1>
     <p>ユーザーガイド PDF の直通 QR だっちゃ。</p>
     <img id="qr" alt="ユーザーガイドPDFのQRコード">
-    <a href="https://raw.githubusercontent.com/fyuuchan-lgtm/GX_handy_GE_VER2/master/docs/user-guide/yakupita-user-guide.pdf">PDFのURLを開く</a>
+    <a href="user-guide/yakupita-user-guide.pdf">PDFのURLを開く</a>
   </main>
   <script>
-    const target = "https://raw.githubusercontent.com/fyuuchan-lgtm/GX_handy_GE_VER2/master/docs/user-guide/yakupita-user-guide.pdf";
+    const target = "https://fyuuchan-lgtm.github.io/GX_handy_GE_VER2/user-guide/yakupita-user-guide.pdf";
     document.querySelector("#qr").src = `https://api.qrserver.com/v1/create-qr-code/?size=360x360&data=${encodeURIComponent(target)}`;
   </script>
 </body>

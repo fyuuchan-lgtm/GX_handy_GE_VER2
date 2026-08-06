@@ -33,10 +33,16 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
+      - name: Prepare public guide files
+        run: |
+          mkdir -p public-guide/user-guide
+          cp -R docs/landing/yakupita-pages/. public-guide/
+          cp -R docs/user-guide/. public-guide/user-guide/
+
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: docs/landing/yakupita-pages
+          path: public-guide
 
       - name: Deploy to GitHub Pages
         id: deployment
