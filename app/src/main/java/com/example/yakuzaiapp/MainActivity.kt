@@ -90,7 +90,7 @@ private fun TrialExpiredScreen() {
             textAlign = TextAlign.Center,
         )
         Text(
-            text = "このテスト版の利用可能期間は2026年7月31日までです。",
+            text = TrialAvailability.expirationMessage(),
             modifier = Modifier.padding(top = 16.dp),
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
