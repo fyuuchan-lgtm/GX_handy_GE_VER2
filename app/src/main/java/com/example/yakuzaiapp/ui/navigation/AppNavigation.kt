@@ -52,6 +52,7 @@ import com.example.yakuzaiapp.ui.audit.AuditScanScreen
 import com.example.yakuzaiapp.ui.audit.AuditScanViewModel
 import com.example.yakuzaiapp.ui.checklist.ChecklistScreen
 import com.example.yakuzaiapp.ui.common.PlaceholderScreen
+import com.example.yakuzaiapp.ui.common.ReadableProgressBar
 import com.example.yakuzaiapp.ui.dispensing.DispensingCompleteScreen
 import com.example.yakuzaiapp.ui.dispensing.DispensingPtpScanScreen
 import com.example.yakuzaiapp.ui.dispensing.DispensingScreen
@@ -745,24 +746,12 @@ private fun AutoUpdateOverlay(
                             textAlign = TextAlign.Center,
                         )
                         if (state.totalCount > 0) {
-                            val percent = (state.progressFraction * 100).toInt().coerceIn(0, 100)
-                            Box(
+                            ReadableProgressBar(
+                                progress = state.progressFraction,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(32.dp),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                LinearProgressIndicator(
-                                    progress = { state.progressFraction },
-                                    modifier = Modifier.fillMaxSize(),
-                                )
-                                Text(
-                                    text = "$percent%",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimary,
-                                )
-                            }
+                            )
                         } else {
                             LinearProgressIndicator(
                                 modifier = Modifier

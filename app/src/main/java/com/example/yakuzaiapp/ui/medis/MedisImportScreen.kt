@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.yakuzaiapp.YakuzaiApplication
 import com.example.yakuzaiapp.data.medis.MedisAutoUpdateState
+import com.example.yakuzaiapp.ui.common.ReadableProgressBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -289,24 +290,13 @@ private fun ProcessingView(uiState: MedisImportUiState) {
     Spacer(modifier = Modifier.height(32.dp))
 
     if (uiState.totalCount > 0) {
-        val percent = (uiState.progressFraction * 100).toInt().coerceIn(0, 100)
-        Box(
+        ReadableProgressBar(
+            progress = uiState.progressFraction,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(32.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            LinearProgressIndicator(
-                progress = { uiState.progressFraction },
-                modifier = Modifier.fillMaxSize(),
-            )
-            Text(
-                text = "$percent%",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimary,
-            )
-        }
+            textStyle = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
+        )
     } else {
         LinearProgressIndicator(
             modifier = Modifier
