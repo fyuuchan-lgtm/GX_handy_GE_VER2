@@ -9,23 +9,23 @@ import org.junit.Test
 class TrialAvailabilityTest {
     @Test
     fun availableBeforeExpiry() {
-        assertTrue(TrialAvailability.isAvailable(LocalDate.of(2026, 10, 30)))
+        assertTrue(TrialAvailability.isAvailable(LocalDate.of(2027, 1, 30)))
     }
 
     @Test
     fun availableOnExpiryDate() {
-        assertTrue(TrialAvailability.isAvailable(LocalDate.of(2026, 10, 31)))
+        assertTrue(TrialAvailability.isAvailable(LocalDate.of(2027, 1, 31)))
     }
 
     @Test
     fun unavailableAfterExpiryDate() {
-        assertFalse(TrialAvailability.isAvailable(LocalDate.of(2026, 11, 1)))
+        assertFalse(TrialAvailability.isAvailable(LocalDate.of(2027, 2, 1)))
     }
 
     @Test
     fun expirationMessageUsesConfiguredExpiryDate() {
         assertEquals(
-            "このテスト版の利用可能期間は2026年10月31日までです。",
+            "このテスト版の利用可能期間は2027年1月31日までです。",
             TrialAvailability.expirationMessage(),
         )
     }
